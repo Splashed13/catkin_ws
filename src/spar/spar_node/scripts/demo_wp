@@ -13,9 +13,9 @@ from spar_msgs.msg import FlightMotionAction, FlightMotionGoal
 
 def send_wp(spar_client, x, y, z, yaw):
 	speed = rospy.get_param("~speed", 1.0)
-	accuracy = rospy.get_param("~accuracy", 0.2)
+	accuracy = rospy.get_param("~accuracy", 0.3)
 
-	goal = FlightMotionGoal() 
+	goal = FlightMotionGoal()
 	goal.motion = FlightMotionGoal.MOTION_GOTO
 	goal.position.x = x
 	goal.position.y = y
@@ -59,11 +59,10 @@ def send_wps(spar_client):
 			[ 0.0, 0.0, 2.0, 0.0],
 			[ 0.0, 0.0, 0.0, 0.0]]
 
-
 	# Loop through each waypoint in our list
 	i = 0
 	for wp in wps:
-		rospy.loginfo(f'Sending waypoint {i+1} coordinates {wp}')
+		rospy.loginfo("Sending waypoint %i..." % (i + 1))
 		success = send_wp(spar_client, wp[0], wp[1], wp[2], wp[3])
 		i += 1
 
@@ -74,6 +73,8 @@ def send_wps(spar_client):
 
 	if success:
 		rospy.loginfo("Waypoints complete!")
+
+
 
 def main(args):
 	# Initialise ROS

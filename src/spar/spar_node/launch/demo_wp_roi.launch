@@ -9,11 +9,19 @@
 		<param name="acc_pos" type="double" value="0.1" />
 		<param name="acc_yaw" type="double" value="0.1" />
 
+		<!-- survey altitude -->
+		<param name="survey_altitude" type="double" value="1.0" />
+
 		<!-- Spar parameters -->
 		<param name="action_topic" type="string" value="spar/flight" />
 
 		<!-- Remappings -->
 		<remap from="~/pose" to="uavasr/pose" />
 		<!--remap from="~/roi" to="target_detection/roi" /-->
+
+		<!-- from="~/pose": This refers to the pose topic that is expected by the node under its private namespace (denoted by ~).
+		to="uavasr/pose": This is the new topic name that the pose topic will be remapped to at runtime. -->
+		<!-- In the actual system or project, the pose data might be published under the uavasr/pose topic. Instead of changing 
+		the node's source code to subscribe to uavasr/pose, you use remapping to redirect the ~/pose subscription to uavasr/pose. -->
 	</node>
 </launch>

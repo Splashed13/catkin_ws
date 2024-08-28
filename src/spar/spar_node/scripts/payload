@@ -1,0 +1,64 @@
+import RPi.GPIO as GPIO
+import time
+
+# will set pin mode, or keep the preset mode
+mode = GPIO.getmode()
+if mode == None:
+    GPIO.setmode(GPIO.BCM)
+else:
+    GPIO.setmode(mode)
+    
+# DEFINE YOUR SERVO PINS
+servo1_pin = 17
+servo2_pin = 18
+
+# SET PINS BE OUTPUTS
+GPIO.setup(servo1_pin, GPIO.OUT)
+GPIO.setup(servo2_pin, GPIO.OUT)
+
+# SET OUTPUT PINS TO PWM
+servo1 = GPIO.PWM(servo1_pin, 50)
+servo2 = GPIO.PWM(servo2_pin, 50)
+
+# START PWM SO SERVO IS STILL
+servo1.start(0)
+servo2.start(0)
+
+# SERVO MOVE FUNCTION
+def set_servo_angle(servo, des_angle):
+    # calc the req duty cycle
+    duty = 2 + (des_angle // 18)
+    # if its servo 1
+    if servo == 1:
+        servo1.ChangeDutyCycle(duty)
+        time.sleep(1)
+        servo1.ChangeDutyCycle(0)
+    elif servo == 2:
+        servo2.ChangeDutyCycle(duty)
+        time.sleep(1)
+        servo2.ChangeDutyCycle(0)
+
+# TEST FUNCTION
+def test_function():
+    try:
+        count = 0
+        while count < 7:
+            servo = int(input("Enter the Servo (1 or 2)"))
+            angle = int(input("Please Enter your desired angle (0 -> 180)"))
+            # check inputs correct
+            # or angle > 180
+            if servo != 1 and servo != 2:
+                print("Incorrect Values. Try Again")
+            else:
+                print("Moving Now")
+                set_servo_angle(servo, angle)
+            count += 1
+    finally:
+        # cleanup at the end of the program
+        servo1.stop()
+        servo2.stop()
+        GPIO.cleanup()
+
+# run the test function
+test_function()
+print("Test Concluded")

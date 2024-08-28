@@ -16,7 +16,8 @@ namespace AStar
     {
         int x, y;
 
-        bool operator == (const Vec2i& coordinates_);
+        bool operator == (const Vec2i& coordinates_) const;
+        uint distance(const Vec2i& other_) const;
     };
 
     using uint = unsigned int;
@@ -27,22 +28,33 @@ namespace AStar
     {
         uint G, H;
         Vec2i coordinates;
-        Node *parent;
+        const Node *parent;
 
-        Node(Vec2i coord_, Node *parent_ = nullptr);
-        uint getScore();
+        Node(Vec2i coord_, const Node *parent_ = nullptr);
+        uint getScore() const;
+    };
+
+
+    struct NodeCost
+    {
+        const Node* parent;
+        const uint G;
     };
 
     using NodeSet = std::set<Node*>;
+    using ConstNodeSet = std::set<const Node*>;
 
     class Generator
     {
+        const Node* findNodeOnList(ConstNodeSet& nodes_, Vec2i coordinates_);
         Node* findNodeOnList(NodeSet& nodes_, Vec2i coordinates_);
         void releaseNodes(NodeSet& nodes_);
+        void releaseNodes(ConstNodeSet& nodes_);
+        bool lineOfSight(const Node* current, const Node* successor) const;
 
     public:
         Generator();
-        bool detectCollision(Vec2i coordinates_);
+        bool detectCollision(Vec2i coordinates_) const;
         void setWorldSize(Vec2i worldSize_);
         void setDiagonalMovement(bool enable_);
         void setHeuristic(HeuristicFunction heuristic_);
@@ -50,12 +62,17 @@ namespace AStar
         void addCollision(Vec2i coordinates_);
         void removeCollision(Vec2i coordinates_);
         void clearCollisions();
+        void setThetaStar(bool enable_);
+
+        NodeCost computeCost(const Node* current, Node* successor, const uint c) const;
+        uint getStraightLineCost(uint step) const;
 
     private:
         HeuristicFunction heuristic;
         CoordinateList direction, walls;
         Vec2i worldSize;
         uint directions;
+        bool use_theta_star;
     };
 
     class Heuristic

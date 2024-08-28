@@ -3,6 +3,7 @@
 import rospy
 from egh450_target_solvepnp.pose_estimator import PoseEstimator
 
+
 if __name__ == '__main__':
 	# Initialize
 	rospy.init_node('egh450_target_solvepnp', anonymous=True)

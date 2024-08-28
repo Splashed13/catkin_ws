@@ -11,6 +11,13 @@ from geometry_msgs.msg import Point, PoseStamped
 
 from spar_msgs.msg import FlightMotionAction, FlightMotionGoal
 
+from nav_msgs.msg import Path
+
+import tf.transformations
+
+# Libraries for interfacing with breadcrumb
+from breadcrumb.srv import RequestPath
+from breadcrumb.srv import RequestPathRequest
 
 # This is getting a bit more complicated now, so we'll put our information in
 # a class to keep track of all of our variables. This is not so much different
@@ -22,7 +29,7 @@ class Guidance():
 	def __init__(self, waypoints):
 		# Make sure we have a valid waypoint list
 		if not self.check_waypoints(waypoints):
-			raise ArgumentError("Invalid waypoint list input!")
+			raise ValueError("Invalid waypoint list input!")
 
 		# Internal counter to see what waypoint were are up to
 		self.waypoint_counter = 0
@@ -32,13 +39,30 @@ class Guidance():
 		# This will stop our "waypoint is reached" callback from firing
 		# during the roi diversion and taking over our flight!
 		self.performing_roi = False
+		self.breadcrumb_mode = False
 
 		# Save the input waypoints
 		self.waypoints = waypoints
+	
+		self.breadcrumb_waypoint_counter = 0
+		self.breadcrumbWPs = []
+		
+		self.current_yaw = None
+		self.current_orientation = None
+
+		self.display_path(waypoints, "Waypoints")
+
+		self.survey_altitude = rospy.get_param("~survey_altitude", 1)
+
+		self.current_yaw = None
+		self.current_orientation = None
+		self.survey_altitude = rospy.get_param("~survey_altitude", 1)
 
 		# Make some space to record down our current location
-		self.current_location = Point()
+		self.current_location = Point() # useful for the nav functionality is peroidically updated
 		# Set our linear and rotational velocities for the flight
+		# these <~name> parameters are set in the launch file
+		# if called with rosrun then 0.2 is used for example.
 		self.vel_linear = rospy.get_param("~vel_linear", 0.2)
 		self.vel_yaw = rospy.get_param("~vel_yaw", 0.2)
 		# Set our position and yaw waypoint accuracies
@@ -50,6 +74,13 @@ class Guidance():
 		self.spar_client = actionlib.SimpleActionClient(action_ns, FlightMotionAction)
 		rospy.loginfo("Waiting for spar...")
 		self.spar_client.wait_for_server()
+
+
+		# Wait to connect with Breadcrumb
+		# Code will error if you try to connect to a service
+		# that does not exist
+		rospy.wait_for_service('/breadcrumb/request_path') # blocking code
+		self.srvc_bc = rospy.ServiceProxy('/breadcrumb/request_path', RequestPath)
 
 		if not rospy.is_shutdown():
 			# Good to go, start mission
@@ -79,6 +110,47 @@ class Guidance():
 			# If shutdown is issued (eg. CTRL+C), cancel current
 	 		# mission before rospy is shutdown.
 			rospy.on_shutdown( lambda : self.shutdown() )
+
+
+	def quaternion_to_rpy(self, orientation):
+		# Extract the quaternion from the pose
+		quaternion = (
+			orientation.x,
+			orientation.y,
+			orientation.z,
+			orientation.w
+		)
+
+		self.current_orientation = orientation 
+
+		# Convert quaternion to roll, pitch, yaw
+		roll, pitch, yaw = tf.transformations.euler_from_quaternion(quaternion)
+
+		return roll, pitch, yaw
+
+	def display_path(self, wps, type_):
+		pub_path = rospy.Publisher(f'/guidance/path{type_}', Path, queue_size=10, latch=True)
+		msg = Path()
+		msg.header.frame_id = "/map"
+		msg.header.stamp = rospy.Time.now()
+
+		for wp in wps:
+			pose_ = PoseStamped()
+			pose_.pose.position.x = wp[0]
+			pose_.pose.position.y = wp[1]
+			pose_.pose.position.z = wp[2]
+
+			if self.current_orientation:
+				pose_.pose.orientation = self.current_orientation
+			else:
+				pose_.pose.orientation.w = 1  # Real part of the quaternion
+				pose_.pose.orientation.x = 0  # i component of the quaternion
+				pose_.pose.orientation.y = 0  # j component of the quaternion
+				pose_.pose.orientation.z = 0  # k component of the quaternion
+
+			msg.poses.append(pose_)
+
+		pub_path.publish(msg)
 
 	# This function will check if a list of waypoints is in the format we expect
 	def check_waypoints(self, wps):
@@ -114,9 +186,16 @@ class Guidance():
 			rospy.logwarn("Waypoint has an invalid length (must be X/Y/Z/Yaw)")
 			return False
 
+		# Check if waypoints are within arena boundaries (8x4) arena
+		if abs(wp[0]) > 4 or abs(wp[1]) > 2.75 or abs(wp[3]) > 4:
+			rospy.logwarn(f'Waypoint has an invalid size for 0134 must be within arena bounds, problematic waypoints: {wp}')
+			return False
+		
 		# If we haven't returned false yet, then waypoint looks valid!
 		return True
-
+	
+	def check_imagegry_waypoints(self, wp):
+		pass
 
 	# This function will make sure we shut down the node as safely as possible
 	def shutdown(self):
@@ -131,9 +210,12 @@ class Guidance():
 	# This function will check receive the current pose of the UAV constantly
 	def callback_pose(self, msg_in):
 		# Store the current position at all times so it can be accessed later
-		self.current_location = msg_in.pose.position
-
-
+		if msg_in.pose.position:
+			self.current_location = msg_in.pose.position
+		# convert msg_in.pose.orientation (quaternion) to rpy.
+		if msg_in.pose.orientation:
+			_, _, self.current_yaw = self.quaternion_to_rpy(msg_in.pose.orientation)
+		
 	# This function will fire whenever a ROI pose message is sent
 	# It is also responsible for handling the ROI "inspection task"
 	def callback_inspect_roi(self, msg_in):
@@ -147,11 +229,10 @@ class Guidance():
 		start_location = self.current_location
 		# XXX:	It would also be a good idea to capture "current yaw" from
 		#		the pose to maintain that throughout a diversion
-
 		# Set the "diversion waypoint" (at yaw zero)
-		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, msg_in.pose.position.z, 0.0]
+		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, msg_in.pose.position.z, self.current_yaw]
 		# Set the "return waypoint" (at yaw zero)
-		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0.0]
+		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, self.current_yaw]
 
 		# XXX: Could pause here for a moment with ( "rospy.sleep(...)" ) to make sure the UAV stops correctly
 
@@ -188,7 +269,7 @@ class Guidance():
 	def send_wp(self, wp):
 		# Make sure the waypoint is valid before continuing
 		if not self.check_waypoint(wp):
-			raise ArgumentError("Invalid waypoint input!")
+			raise ValueError("Invalid waypoint input!")
 
 		# Build the flight goal
 		goal = FlightMotionGoal()
@@ -235,9 +316,64 @@ class Guidance():
 				#		 an "elif" check instead.
 				#		 i.e. if complete; elif more wps; else wps finished)
 				if self.waypoint_counter < (len(self.waypoints)):
-					self.send_wp(self.waypoints[self.waypoint_counter])
-					# Increment our waypoint counter
-					self.waypoint_counter += 1
+					if not self.breadcrumb_mode:
+						req = RequestPathRequest()
+						req.start.x = self.waypoints[self.waypoint_counter-1][0] 
+						req.start.y = self.waypoints[self.waypoint_counter-1][1]
+						req.start.z = self.waypoints[self.waypoint_counter-1][2]
+						req.end.x = self.waypoints[self.waypoint_counter][0]
+						req.end.y = self.waypoints[self.waypoint_counter][1]
+						req.end.z = self.waypoints[self.waypoint_counter][2]
+
+						res = self.srvc_bc(req)
+
+						# Breadcrumb will return a vector of poses if a solution was found
+						# If no solution was found (i.e. no solution, or request bad
+						# start/end), then breadcrumb returns and empty vector
+						# XXX: You could also use res.path_sparse (see breadcrumb docs)
+						breadcrumbWPs = []
+						
+						if len(res.path.poses) > 0:
+							# Print the path to the screen
+							rospy.loginfo(f"Waypoint {self.waypoint_counter-1} to Waypoint {self.waypoint_counter}:")
+							rospy.loginfo("[%0.2f;%0.2f;%0.2f] => [%0.2f;%0.2f;%0.2f]",
+										req.start.x,req.start.y,req.start.z,
+										req.end.x,req.end.y,req.end.z)
+
+							# Loop through the solution returned from breadcrumb
+							for i in range(len(res.path.poses)):
+								rospy.loginfo("    [%0.2f;%0.2f;%0.2f]",
+											res.path.poses[i].position.x,
+											res.path.poses[i].position.y,
+											res.path.poses[i].position.z)
+								
+								# attempt to maintain current yaw during obstacle avoidance
+								yaw_to_use = self.current_yaw if self.current_yaw is not None else 0
+
+								breadcrumbWPs.append([res.path.poses[i].position.x,
+											res.path.poses[i].position.y,
+											self.survey_altitude, yaw_to_use])
+
+											
+								print(f'Breadcrumb waypoints: {breadcrumbWPs}')
+								self.breadcrumbWPs = breadcrumbWPs
+								self.display_path(self.breadcrumbWPs, "Breadcrumb")
+								self.breadcrumb_mode = True
+								self.breadcrumb_waypoint_counter = 0
+								self.send_wp(self.breadcrumbWPs[self.breadcrumb_waypoint_counter])
+								self.breadcrumb_waypoint_counter += 1
+							
+						else:
+							rospy.logerr("solution not found")
+
+					else:
+						if self.breadcrumb_waypoint_counter < (len(self.breadcrumbWPs)):
+							self.send_wp(self.breadcrumbWPs[self.breadcrumb_waypoint_counter])
+							# Increment our waypoint counter
+							self.breadcrumb_waypoint_counter += 1
+						else:
+							self.waypoint_counter += 1
+							self.breadcrumb_mode = False
 				else:
 					# Else the mission is over, shutdown and quit the node
 					# XXX:	This could be used to restart the mission back to the
@@ -255,16 +391,36 @@ def main(args):
 
 	# List of waypoints
 	# [X, Y, Z, Yaw]
-	wps = [[ 0.0, 0.0, 1.0, 0.0],
-		   [ 1.0, 1.0, 1.0, 0.0],
-		   [-1.0, 1.0, 1.0, 0.0],
-		   [-1.0,-1.0, 1.0, 0.0],
-		   [ 1.0,-1.0, 1.0, 0.0],
-		   [ 0.0, 0.0, 1.0, 0.0]]
+	# wps = [[ 0.0, 0.0, 1.0, 0.0],
+	# 	   [ 1.0, 1.0, 1.0, 0.0],
+	# 	   [-1.0, 1.0, 1.0, 0.0],
+	# 	   [-1.0,-1.0, 1.0, 0.0],
+	# 	   [ 1.0,-1.0, 1.0, 0.0],
+	# 	   [ 0.0, 0.0, 1.0, 0.0]]
+
+	survey_altitude = rospy.get_param("~survey_altitude", 1)
+
+	if survey_altitude > 4 or survey_altitude < 0:
+		rospy.logwarn("Survey Altitude to high must be 0m < x < 4m")
+		return 
+
+	wps = [[ 0.0, 0.0, survey_altitude, 0.0],
+		[ 2.5, 2.5, survey_altitude, 0.0],
+		[ 2.5, -2.5, survey_altitude, 0.0],
+		[ 1.5, -2.5, survey_altitude, 0.0],
+		[ 1.5, 2.5, survey_altitude, 0.0],
+		[ 0.6, 2.5, survey_altitude, 0.0],
+		[ 0.6, -2.5, survey_altitude, 0.0],
+		[ -0.8, -2.5, survey_altitude, 0.0],
+		[ -0.8, 2.5, survey_altitude, 0.0],
+		[ -2.5, 2.5, survey_altitude, 0.0],
+		[ -2.5, -2.5, survey_altitude, 0.0],
+		[ 0.0, 0.0, survey_altitude, 0.0],
+		[ 0.0, 0.0, 0.0, 0.0]]
 
 	# Create our guidance class option
 	guide = Guidance(wps)
-
+	
 	# Spin!
 	rospy.spin()
 
