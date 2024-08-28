@@ -1,0 +1,86 @@
+#!/usr/bin/python2
+
+import sys
+from math import *
+
+import rospy
+from std_msgs.msg import Float64
+from mavros_msgs.msg import AttitudeTarget
+from geometry_msgs.msg import Vector3
+from geometry_msgs.msg import Quaternion
+
+global pub_roll
+global pub_pitch
+global pub_yaw
+
+def quaternion_to_rpy(q):
+	if not isinstance(q, Quaternion):
+		raise TypeError('Input should be a geometry_msgs/Quaternion')
+
+	q2sqr = q.y * q.y;
+	t0 = -2.0 * (q2sqr + q.z * q.z) + 1.0
+	t1 = 2.0 * (q.x * q.y + q.w * q.z)
+	t2 = -2.0 * (q.x * q.z - q.w * q.y)
+	t3 = 2.0 * (q.y * q.z + q.w * q.x)
+	t4 = -2.0 * (q.x * q.x + q2sqr) + 1.0
+
+	if(t2 > 1.0):
+		t2 = 1.0
+	elif(t2 < -1.0):
+		t2 = -1.0
+
+	e = Vector3()
+	e.x = atan2(t3, t4);
+	e.y = asin(t2);
+	e.z = atan2(t1, t0);
+
+	return e
+
+def callback(msg_in):
+	global pub_roll
+	global pub_pitch
+	global pub_yaw
+
+	e = quaternion_to_rpy(msg_in.orientation)
+
+	pub_roll.publish(e.x)
+	pub_pitch.publish(e.y)
+	pub_yaw.publish(e.z)
+
+if __name__ == '__main__':
+	global pub_roll
+	global pub_pitch
+	global pub_yaw
+
+	rospy.init_node('rpy_from_attitude_target', anonymous=True)
+
+	sub_name = ""
+
+	try:
+		found_topic = False
+
+		for a in sys.argv:
+			if found_topic:
+				sub_name = a
+				break
+
+			if a == "-t":
+				found_topic = True
+
+		if not sub_name:
+			raise AttributeError("No topic name found")
+
+	except AttributeError as e:
+		rospy.logerr("Error: %s" % e)
+		rospy.logerr("Usage: rpy_from_attitude_target /attitude_target/message")
+		exit(1)
+
+	sub = rospy.Subscriber(sub_name, AttitudeTarget, callback)
+	pub_roll = rospy.Publisher(sub_name + "/roll", Float64, queue_size=10)
+	pub_pitch = rospy.Publisher(sub_name + "/pitch", Float64, queue_size=10)
+	pub_yaw = rospy.Publisher(sub_name + "/yaw", Float64, queue_size=10)
+
+	try:
+		rospy.spin()
+	except rospy.ROSInterruptException:
+		sub.unregister()

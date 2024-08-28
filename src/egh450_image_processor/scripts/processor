@@ -1,0 +1,22 @@
+#!/usr/bin/env python
+
+import rospy
+from egh450_image_processor.image_processor import ImageProcessor
+
+if __name__ == '__main__':
+	# Initialize
+	rospy.init_node('egh450_image_processor', anonymous=True)
+
+	ip = ImageProcessor()
+
+	rospy.loginfo("[IMG] Processing images...")
+
+	# Loop here until quit
+	try:
+		rospy.spin()
+	except rospy.ROSInterruptException:
+		rospy.loginfo("[IMG] Processor shutting down")
+	finally:
+		# Shutdown
+		ip.shutdown()
+

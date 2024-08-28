@@ -1,0 +1,18 @@
+<library path="src">
+  <class name="Eyedropper" type="rqt_eyedropper.eyedrop.Eyedrop" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      A Python-based GUI interface to assist with picking image colour values
+    </description>
+    <qtgui>
+      <group>
+        <label>QUTAS Tools</label>
+        <icon type="theme">folder</icon>
+        <statustip>Plugins developed as part of the QUTAS Flight Stack.</statustip>
+      </group>
+      <label>Eyedropper</label>
+      <icon type="theme">system-search</icon>
+      <statustip>Shows colour information about a specific point in a picture</statustip>
+    </qtgui>
+  </class>
+</library>
+

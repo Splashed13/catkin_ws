@@ -1,0 +1,7 @@
+<?xml version='1.0'?>
+<launch>
+	<node pkg="contrail_manager" type="dispatcher" name="waypoint_dispatcher" clear_params="true" output="screen">
+		<param name="action_topic" value="/mavel/contrail" />
+		<rosparam command="load" file="$(find qutas_lab_450)/config/takeoff_test.yaml"/>
+	</node>
+</launch>

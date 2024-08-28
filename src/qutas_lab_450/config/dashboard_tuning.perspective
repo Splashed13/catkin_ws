@@ -1,0 +1,242 @@
+{
+  "keys": {},
+  "groups": {
+    "pluginmanager": {
+      "keys": {
+        "running-plugins": {
+          "type": "repr",
+          "repr": "{u'MultiplotPlugin': [1], u'rqt_robin_gcs/Robin GCS': [1], u'rqt_mavros_gui/MAVROS GUI': [1], u'rqt_generic_hud/Generic HUD': [1]}"
+        }
+      },
+      "groups": {
+        "plugin__rqt_generic_hud__Generic HUD__1": {
+          "keys": {},
+          "groups": {
+            "dock_widget__GenericHUD": {
+              "keys": {
+                "dockable": {
+                  "type": "repr",
+                  "repr": "True"
+                },
+                "parent": {
+                  "type": "repr",
+                  "repr": "None"
+                },
+                "dock_widget_title": {
+                  "type": "repr",
+                  "repr": "u'Generic HUD'"
+                }
+              },
+              "groups": {}
+            }
+          }
+        },
+        "plugin__rqt_reconfigure__Param__1": {
+          "keys": {},
+          "groups": {
+            "dock_widget___plugincontainer_top_widget": {
+              "keys": {
+                "dockable": {
+                  "type": "repr",
+                  "repr": "u'true'"
+                },
+                "parent": {
+                  "type": "repr",
+                  "repr": "None"
+                },
+                "dock_widget_title": {
+                  "type": "repr",
+                  "repr": "u'Dynamic Reconfigure'"
+                }
+              },
+              "groups": {}
+            },
+            "plugin": {
+              "keys": {
+                "splitter": {
+                  "type": "repr(QByteArray.hex)",
+                  "repr(QByteArray.hex)": "QtCore.QByteArray('000000ff0000000100000002000001480000027001ffffffff010000000100')",
+                  "pretty-print": "       H p     "
+                },
+                "_splitter": {
+                  "type": "repr(QByteArray.hex)",
+                  "repr(QByteArray.hex)": "QtCore.QByteArray('000000ff00000001000000020000012c000000640100000009010000000200')",
+                  "pretty-print": "       , d     "
+                }
+              },
+              "groups": {}
+            }
+          }
+        },
+        "plugin__rqt_image_view__ImageView__1": {
+          "keys": {},
+          "groups": {
+            "dock_widget__ImageViewWidget": {
+              "keys": {
+                "dockable": {
+                  "type": "repr",
+                  "repr": "u'true'"
+                },
+                "parent": {
+                  "type": "repr",
+                  "repr": "None"
+                },
+                "dock_widget_title": {
+                  "type": "repr",
+                  "repr": "u'Image View'"
+                }
+              },
+              "groups": {}
+            },
+            "plugin": {
+              "keys": {
+                "max_range": {
+                  "type": "repr",
+                  "repr": "u'10'"
+                },
+                "mouse_pub_topic": {
+                  "type": "repr",
+                  "repr": "u'/front_camera/image_raw/compressed_mouse_left'"
+                },
+                "num_gridlines": {
+                  "type": "repr",
+                  "repr": "u'0'"
+                },
+                "toolbar_hidden": {
+                  "type": "repr",
+                  "repr": "u'false'"
+                },
+                "zoom1": {
+                  "type": "repr",
+                  "repr": "u'false'"
+                },
+                "dynamic_range": {
+                  "type": "repr",
+                  "repr": "u'false'"
+                },
+                "topic": {
+                  "type": "repr",
+                  "repr": "u'/front_camera/image_raw/compressed'"
+                },
+                "publish_click_location": {
+                  "type": "repr",
+                  "repr": "u'false'"
+                }
+              },
+              "groups": {}
+            }
+          }
+        },
+        "plugin__MultiplotPlugin__1": {
+          "keys": {},
+          "groups": {
+            "dock_widget__MultiplotWidget": {
+              "keys": {
+                "dockable": {
+                  "type": "repr",
+                  "repr": "True"
+                },
+                "parent": {
+                  "type": "repr",
+                  "repr": "None"
+                },
+                "dock_widget_title": {
+                  "type": "repr",
+                  "repr": "u'Multiplot - [file:///home/pryre/catkin_ws/src/mantis/mantis_description/launch/rqt_multiplot_end_pose.xml]'"
+                }
+              },
+              "groups": {}
+            },
+            "plugin": {
+              "keys": {},
+              "groups": {
+                "history": {
+                  "keys": {
+                    "max_length": {
+                      "type": "repr",
+                      "repr": "10"
+                    },
+                    "config_0": {
+                      "type": "repr",
+                      "repr": "u'file:///home/pryre/catkin_ws/src/mantis/mantis_description/launch/rqt_multiplot_end_pose.xml'"
+                    }
+                  },
+                  "groups": {}
+                }
+              }
+            }
+          }
+        },
+        "plugin__rqt_mavros_gui__MAVROS GUI__1": {
+          "keys": {},
+          "groups": {
+            "dock_widget__MAVROSGUIUi": {
+              "keys": {
+                "dockable": {
+                  "type": "repr",
+                  "repr": "True"
+                },
+                "parent": {
+                  "type": "repr",
+                  "repr": "None"
+                },
+                "dock_widget_title": {
+                  "type": "repr",
+                  "repr": "u'Multicopter Tuner'"
+                }
+              },
+              "groups": {}
+            }
+          }
+        },
+        "plugin__rqt_robin_gcs__Robin GCS__1": {
+          "keys": {},
+          "groups": {
+            "dock_widget__RobinGCSUi": {
+              "keys": {
+                "dockable": {
+                  "type": "repr",
+                  "repr": "True"
+                },
+                "parent": {
+                  "type": "repr",
+                  "repr": "None"
+                },
+                "dock_widget_title": {
+                  "type": "repr",
+                  "repr": "u'Multicopter Tuner'"
+                }
+              },
+              "groups": {}
+            }
+          }
+        }
+      }
+    },
+    "mainwindow": {
+      "keys": {
+        "geometry": {
+          "type": "repr(QByteArray.hex)",
+          "repr(QByteArray.hex)": "QtCore.QByteArray('01d9d0cb00020000000007800000000000000eff0000041a000007800000001800000eff0000041a00000000000000000780')",
+          "pretty-print": "                         "
+        },
+        "state": {
+          "type": "repr(QByteArray.hex)",
+          "repr(QByteArray.hex)": "QtCore.QByteArray('000000ff00000000fd000000020000000100000780000003d2fc0200000001fc0000001b000003d2000002e200fffffffc0100000005fb0000006c007200710074005f007200650063006f006e006600690067007500720065005f005f0050006100720061006d005f005f0031005f005f005f0070006c007500670069006e0063006f006e007400610069006e00650072005f0074006f0070005f0077006900640067006500740100000000000001a20000000000000000fb0000005a007200710074005f0069006d006100670065005f0076006900650077005f005f0049006d0061006700650056006900650077005f005f0031005f005f0049006d0061006700650056006900650077005700690064006700650074010000038b000002c50000000000000000fb00000046004d0075006c007400690070006c006f00740050006c007500670069006e005f005f0031005f005f004d0075006c007400690070006c006f00740057006900640067006500740100000000000005af0000034900fffffffb00000056007200710074005f00670065006e0065007200690063005f006800750064005f005f00470065006e00650072006900630020004800550044005f005f0031005f005f00470065006e006500720069006300480055004401000005b5000000c1000000c100fffffffc0000067c000001040000010400fffffffc0200000002fb0000004e007200710074005f0072006f00620069006e005f006700630073005f005f0052006f00620069006e0020004700430053005f005f0031005f005f0052006f00620069006e00470043005300550069010000001b000001af000001af00fffffffb00000054007200710074005f006d006100760072006f0073005f006700750069005f005f004d004100560052004f00530020004700550049005f005f0031005f005f004d004100560052004f00530047005500490055006901000001d00000021d0000012d00ffffff000000030000020e00000128fc0100000002fb0000004e007200710074005f0072006f00620069006e005f006700630073005f005f0052006f00620069006e0020004700430053005f005f0032005f005f0052006f00620069006e00470043005300550069010000010a000002b40000000000000000fb00000056007200710074005f00670065006e0065007200690063005f006800750064005f005f00470065006e00650072006900630020004800550044005f005f0032005f005f00470065006e006500720069006300480055004401000000000000014f000000000000000000000000000003d200000004000000040000000800000008fc00000001000000030000000100000036004d0069006e0069006d0069007a006500640044006f0063006b00570069006400670065007400730054006f006f006c0062006100720000000000ffffffff0000000000000000')",
+          "pretty-print": "                                                                                                                                                                                               I                                                                     Nrqt_robin_gcs__Robin GCS__1__RobinGCSUi          Trqt_mavros_gui__MAVROS GUI__1__MAVROSGUIUi                   Nrqt_robin_gcs__Robin GCS__2__RobinGCSUi          Vrqt_generic_hud__Generic HUD__2__GenericHUD                            6MinimizedDockWidgetsToolbar        "
+        }
+      },
+      "groups": {
+        "toolbar_areas": {
+          "keys": {
+            "MinimizedDockWidgetsToolbar": {
+              "type": "repr",
+              "repr": "8"
+            }
+          },
+          "groups": {}
+        }
+      }
+    }
+  }
+}

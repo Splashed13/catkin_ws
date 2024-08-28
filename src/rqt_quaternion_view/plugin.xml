@@ -1,0 +1,17 @@
+<library path="src">
+  <class name="Quaternion View" type="rqt_quaternion_view.quaternion_view.QuaternionView" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      A display for showing quaternion information
+    </description>
+    <qtgui>
+      <group>
+        <label>QUTAS Tools</label>
+        <icon type="theme">folder</icon>
+        <statustip>Plugins developed as part of the QUTAS Flight Stack.</statustip>
+      </group>
+      <label>Quaternion View</label>
+      <icon type="theme">utilities-system-monitor</icon>
+      <statustip>A display for showing quaternion information</statustip>
+    </qtgui>
+  </class>
+</library>

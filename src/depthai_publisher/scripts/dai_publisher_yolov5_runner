@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+from depthai_publisher import dai_publisher_yolov5_runner
+
+if __name__ == '__main__':
+    dai_publisher_yolov5_runner.main()

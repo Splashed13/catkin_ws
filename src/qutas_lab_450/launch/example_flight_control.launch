@@ -1,0 +1,28 @@
+<?xml version='1.0'?>
+<launch>
+	<arg name="uav_name" default="uav" />
+
+	<!-- Mavel Node -->
+	<node pkg="mavel" type="mavel_node" name="mavel" clear_params="true" output="screen">
+		<!-- Controller Parameters /-->
+		<!-- CHANGE THIS! -->
+		<rosparam command="load" file="/home/uavusrgX/catkin_ws/launch/mavel_params.yaml"/>
+
+		<!-- Interface Topics /-->
+		<remap from="~command/attitude" to="/mavros/setpoint_raw/attitude"/>
+		<remap from="~state/odometry" to="/odom"/>
+		<remap from="~state/mav_state" to="/mavros/state"/>
+	</node>
+
+	<!-- Odom Sync Node -->
+	<node pkg="odom_sync" type="odom_sync_node" name="odom_sync" clear_params="true" output="screen">
+		<param name="source_namespace" value="/vicon/$(arg uav_name)" />
+
+		<!--remap from="odom" to="/mavel/state/odometry" /-->
+	</node>
+
+
+	<!-- Pose Reference -->
+	<node pkg="topic_tools" type="drop" name="mocap_drop" clear_params="true" output="screen"
+	args="/vicon/$(arg uav_name)/pose 9 10 /mavros/mocap/pose"/>
+</launch>

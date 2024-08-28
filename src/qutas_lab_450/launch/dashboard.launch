@@ -1,0 +1,7 @@
+<?xml version='1.0'?>
+<launch>
+	<!-- RQT GCS Dashboard -->
+	<node pkg="rqt_gui" type="rqt_gui" name="qutas_dashboard"
+	args="--perspective-file '$(find qutas_lab_450)/config/dashboard.perspective'"
+	clear_params="true" output="screen"/>
+</launch>

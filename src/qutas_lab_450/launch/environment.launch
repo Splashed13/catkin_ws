@@ -1,0 +1,73 @@
+<?xml version='1.0'?>
+<launch>
+	<!-- Common Settings -->
+	<arg name="frame_id" default="map" />
+	<arg name="topic_grid" default="/grid" />
+	<arg name="vicon_server_dvp" default="192.168.1.101"/>
+
+	<!-- Configure for each system Setup -->
+	<arg name="vicon" default="false" />
+	<arg name="optitrack" default="true" />
+	<arg name="vrpn_object_name" default="uavteam5" />
+
+	<!-- VRPN Clinet (VICON) -->
+	<group if="$(arg vicon)">
+		<node pkg="vrpn_client_ros" type="vrpn_client_node" name="vicon" output="screen">
+			<param name="server" value="$(arg vicon_server_dvp)" type="str" />
+			<param name="port" value="3883" type="int" />
+
+			<param name="update_frequency" value="100.0" type="double" />
+			<param name="frame_id" value="$(arg frame_id)" type="str" />
+
+			<param name="use_server_time" value="false" type="bool" />
+			<param name="broadcast_tf" value="true" type="bool" />
+			<param name="refresh_tracker_frequency" value="1.0" type="double" />
+		</node>
+		<!-- VICON Bridge -->
+		<!-- Switched to VRPN Client!
+		<include file="$(find vicon_bridge)/launch/vicon.launch">
+			<arg name="server" value="$(arg frame_id)" />
+		</include>
+		-->
+	</group>
+
+	<!-- VRPN Clinet (OptiTrack) -->
+	<group if="$(arg optitrack)">
+		<!-- This node will launch the node that bridges vicon (optitrack) and MAVROS -->
+		<include file="$(find qutas_lab_450)/launch/vrpn_optiTrack.launch">
+			<arg name="vrpn_object_name" value="$(arg vrpn_object_name)" />
+  		</include>
+	</group>
+
+	<!-- Takeoff Location (for student tests) -->
+	<node pkg="tf2_ros" type="static_transform_publisher" name="tf_home"
+	args="-1 -1 0 0 0 0 map home"
+	clear_params="true" output="screen"/>
+
+	<!-- World Location (for MAVROS) -->
+	<node pkg="tf2_ros" type="static_transform_publisher" name="tf_world"
+	args="0 0 0 0 0 0 world map"
+	clear_params="true" output="screen"/>
+
+	<!-- Occupancy Grid -->
+	<node pkg="qutas_lab_450" type="area_map_node" name="area_map" clear_params="true" output="screen">
+		<remap from="~/grid" to="$(arg topic_grid)"/>
+		<param name="frame_id" value="$(arg frame_id)" type="str" />
+
+		<!-- Map Parameters /-->
+		<rosparam command="load" file="$(find qutas_lab_450)/launch/map_layout.yaml"/>
+	</node>
+
+	<!-- Grid Visualization -->
+	<node pkg="qutas_lab_450" type="area_viz_node" name="area_viz" clear_params="true" output="screen">
+		<param name="topic_grid" value="$(arg topic_grid)" type="str" />
+		<param name="topic_markers" value="markers" type="str" />
+		<param name="marker/namespace" value="area_viz" type="str" />
+		<param name="marker/height" value="2.0" type="double" />
+		<param name="marker/color/alpha" value="1.0" type="double" />
+		<param name="marker/color/red" value="0.5" type="double" />
+		<param name="marker/color/green" value="0.5" type="double" />
+		<param name="marker/color/blue" value="0.5" type="double" />
+	</node>
+
+</launch>

@@ -1,0 +1,17 @@
+<library path="src">
+  <class name="Generic HUD" type="rqt_generic_hud.generic_hud.GenericHUD" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      A generic HUD to assist in quickly viewing specific message contents
+    </description>
+    <qtgui>
+      <group>
+        <label>QUTAS Tools</label>
+        <icon type="theme">folder</icon>
+        <statustip>Plugins developed as part of the QUTAS Flight Stack.</statustip>
+      </group>
+      <label>Generic HUD</label>
+      <icon type="theme">utilities-system-monitor</icon>
+      <statustip>Heads up display for message data</statustip>
+    </qtgui>
+  </class>
+</library>
