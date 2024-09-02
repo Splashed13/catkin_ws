@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+from depthai_publisher import espeak_subscriber1
+
+if __name__ == '__main__':
+    espeak_subscriber1.main()
+    

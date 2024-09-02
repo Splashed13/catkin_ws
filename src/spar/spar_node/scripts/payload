@@ -1,5 +1,11 @@
+# Import ROS stuff
+import rospy
+from std_msgs.msg import Bool
+# Import Python/Pi stuff
 import RPi.GPIO as GPIO
 import time
+
+sub_a = None
 
 # will set pin mode, or keep the preset mode
 mode = GPIO.getmode()
@@ -20,45 +26,135 @@ GPIO.setup(servo2_pin, GPIO.OUT)
 servo1 = GPIO.PWM(servo1_pin, 50)
 servo2 = GPIO.PWM(servo2_pin, 50)
 
-# START PWM SO SERVO IS STILL
-servo1.start(0)
-servo2.start(0)
+# START PWM SO SERVO IS CLOSED
+servo1.start(2)
+servo2.start(2)
 
-# SERVO MOVE FUNCTION
-def set_servo_angle(servo, des_angle):
-    # calc the req duty cycle
-    duty = 2 + (des_angle // 18)
-    # if its servo 1
-    if servo == 1:
-        servo1.ChangeDutyCycle(duty)
+# Servo Move Function #2 (takes a true or false)
+def Deploy_Payload(servo_option):
+
+    # Check a valid value is recieved
+    if servo_option != True and servo_option != False:
+        print("Invalid Value. Please enter True or False")
+        return
+    
+    #calc the required duty for open and close
+    duty_closed = 2 + (0 // 18)
+    duty_open = 2 + (180 // 18)
+
+    # If servo 1 is picked (True)
+    if servo_option == True:
+        # Open payload 1
+        servo1.ChangeDutyCycle(duty_open)
+        # Wait for deployment to happen
+        time.sleep(1.5)
+        # Close payload 1
+        servo1.ChangeDutyCycle(duty_closed)
+        # Turn of servo 1
         time.sleep(1)
         servo1.ChangeDutyCycle(0)
-    elif servo == 2:
-        servo2.ChangeDutyCycle(duty)
+    
+    # If servo 2 is picked (False)
+    elif servo_option == False:
+        # Open payload 2
+        servo2.ChangeDutyCycle(duty_open)
+        # Wait for deployment to happen
+        time.sleep(1.5)
+        # Close payload 2
+        servo2.ChangeDutyCycle(duty_closed)
+        # Turn of servo 2
         time.sleep(1)
         servo2.ChangeDutyCycle(0)
 
-# TEST FUNCTION
-def test_function():
-    try:
-        count = 0
-        while count < 7:
-            servo = int(input("Enter the Servo (1 or 2)"))
-            angle = int(input("Please Enter your desired angle (0 -> 180)"))
-            # check inputs correct
-            # or angle > 180
-            if servo != 1 and servo != 2:
-                print("Incorrect Values. Try Again")
-            else:
-                print("Moving Now")
-                set_servo_angle(servo, angle)
-            count += 1
-    finally:
-        # cleanup at the end of the program
-        servo1.stop()
-        servo2.stop()
-        GPIO.cleanup()
+# Deploy servo from ROS
+def callback_a(msg_in):
+	# A bool message contains one field called "data" which can be true or false
+	# http://docs.ros.org/melodic/api/std_msgs/html/msg/Bool.html
+	# XXX: The following "GPIO.output" should be replaced to meet the needs of your actuators!
 
-# run the test function
-test_function()
+    # Get the data out of the command
+    servo = msg_in.data
+    # Display the data for confirmation
+    if servo == True:
+        print("You have selected Servo 1 (Epipen)")
+    else:
+        print("You have selected Servo 2 (GPS Tracker)")
+
+    # Deploy the respective servo
+    Deploy_Payload(servo)
+
+	
+def shutdown():
+    # Clean up our ROS subscriber if they were set, avoids error messages in logs
+    if sub_a is not None:
+        sub_a.unregister()
+
+    # XXX: Could perform some failsafe actions here!
+
+    # nah she'll be right
+
+    # Close down our GPIO
+    GPIO.cleanup()
+
+
+
+# ===================================================================================================
+# This is the main code
+if __name__ == '__main__':
+	# Setup the ROS backend for this node
+	rospy.init_node('actuator_controller', anonymous=True)
+
+	# Setup the publisher for a single actuator (use additional subscribers for extra actuators)
+	sub_a = rospy.Subscriber('/actuator_control/actuator_a', Bool, callback_a)
+
+	# Make sure we clean up all our code before exiting
+	rospy.on_shutdown(shutdown)
+
+	# Loop forever
+	rospy.spin()
+
+# ===================================================================================================
+
+
+
 print("Test Concluded")
+
+# ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+# # SERVO MOVE FUNCTION
+# def set_servo_angle(servo, des_angle):
+#     # calc the req duty cycle
+#     duty = 2 + (des_angle // 18)
+#     # if its servo 1
+#     if servo == 1:
+#         servo1.ChangeDutyCycle(duty)
+#         time.sleep(1)
+#         servo1.ChangeDutyCycle(0)
+#     elif servo == 2:
+#         servo2.ChangeDutyCycle(duty)
+#         time.sleep(1)
+#         servo2.ChangeDutyCycle(0)
+
+# # TEST FUNCTION
+# def test_function():
+#     try:
+#         count = 0
+#         while count < 7:
+#             servo = int(input("Enter the Servo (1 or 2)"))
+#             angle = int(input("Please Enter your desired angle (0 -> 180)"))
+#             # check inputs correct
+#             # or angle > 180
+#             if servo != 1 and servo != 2:
+#                 print("Incorrect Values. Try Again")
+#             else:
+#                 print("Moving Now")
+#                 set_servo_angle(servo, angle)
+#             count += 1
+#     finally:
+#         # cleanup at the end of the program
+#         servo1.stop()
+#         servo2.stop()
+#         GPIO.cleanup()
+
+# # run the test function
+# test_function()

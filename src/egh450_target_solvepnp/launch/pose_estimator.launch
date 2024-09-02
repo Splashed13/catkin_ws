@@ -20,6 +20,9 @@
 		<remap from="~camera_info" to="/depthai_node/camera/camera_info"/>
 		<remap from="~image_raw" to="/depthai_node/image/raw"/>
 		<remap from="~image_raw/compressed" to="/depthai_node/image/compressed"/>
+		
+		
+		
 		<!--
 		<remap from="~debug/image_raw/compressed" to="/debug_compressed"/>
 		<remap from="~overlay/image_raw/compressed" to="/overlay_compressed"/>

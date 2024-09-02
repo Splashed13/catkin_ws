@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 
 import cv2
-
 import rospy
 from sensor_msgs.msg import CompressedImage
 from cv_bridge import CvBridge, CvBridgeError
-
+from std_msgs.msg import Int32, MultiArrayDimension, MultiArrayLayout, Float32MultiArray
 import numpy as np
 
 
@@ -18,6 +17,10 @@ class ArucoDetector():
     def __init__(self):
         self.aruco_pub = rospy.Publisher(
             '/processed_aruco/image/compressed', CompressedImage, queue_size=10)
+        self.id_pub = rospy.Publisher(
+            '/aruco_id', Int32, queue_size=10)  # Publisher for ArUco ID
+        self.corners_pub = rospy.Publisher(
+            '/aruco_corners', Float32MultiArray, queue_size=10)  # Publisher for ArUco corners
 
         self.br = CvBridge()
 
@@ -33,9 +36,6 @@ class ArucoDetector():
 
         aruco = self.find_aruco(frame)
         self.publish_to_ros(aruco)
-
-        # cv2.imshow('aruco', aruco)
-        # cv2.waitKey(1)
 
     def find_aruco(self, frame):
         (corners, ids, _) = cv2.aruco.detectMarkers(
@@ -63,7 +63,22 @@ class ArucoDetector():
                 cv2.putText(frame, str(
                     marker_ID), (top_left[0], top_right[1] - 15), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 255, 0), 2)
 
+                # Publish corners and ID
+                self.publish_corners_and_id(marker_ID, marker_corner)
+
         return frame
+
+    def publish_corners_and_id(self, marker_ID, marker_corner):
+        corners_msg = Float32MultiArray()
+
+        # Flatten the corner coordinates and include the ID at the end
+        data = marker_corner.flatten().tolist()
+        data.append(float(marker_ID))
+
+        corners_msg.data = data
+
+        self.corners_pub.publish(corners_msg)
+        
 
     def publish_to_ros(self, frame):
         msg_out = CompressedImage()

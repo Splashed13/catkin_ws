@@ -174,8 +174,9 @@ catkin_install_python(PROGRAMS
   scripts/takeoff
   scripts/land
   scripts/tf2_listener
-  scripts/tf2_broadcaster_frames
   scripts/tf2_broadcaster_target
+  scripts/tf2_broadcaster_frames
+  # scripts/tf2_broadcaster_target
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

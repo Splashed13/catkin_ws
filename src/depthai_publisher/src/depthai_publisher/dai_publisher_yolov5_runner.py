@@ -19,6 +19,7 @@ import depthai as dai
 import rospy
 from sensor_msgs.msg import CompressedImage, Image, CameraInfo
 from cv_bridge import CvBridge, CvBridgeError
+from std_msgs.msg import Float32MultiArray  # Import message type for bounding boxes
 
 ############################### ############################### Parameters ###############################
 # Global variables to deal with pipeline creation
@@ -28,11 +29,11 @@ cam=None
 # sync outputs
 syncNN = True
 # model path
-modelsPath = "/home/gcsteam5/EGH450/src/depthai_publisher/src/depthai_publisher/models"
+modelsPath = "/home/gcsteam5/catkin_ws/src/depthai_publisher/src/depthai_publisher/models"
 # modelName = 'exp31Yolov5_ov21.4_6sh'
-modelName = 'model3'
+modelName = 'model4'
 # confJson = 'exp31Yolov5.json'
-confJson = 'model3.json'
+confJson = 'model4.json'
 
 ################################  Yolo Config File
 # parse config
@@ -64,6 +65,7 @@ class DepthaiCamera():
     pub_topic_raw = '/depthai_node/image/raw'
     pub_topic_detect = '/depthai_node/detection/compressed'
     pub_topic_cam_inf = '/depthai_node/camera/camera_info'
+    pub_topic_bbox = '/depthai_node/bounding_boxes'  # New topic for bounding boxes
 
     def __init__(self):
         self.pipeline = dai.Pipeline()
@@ -78,6 +80,8 @@ class DepthaiCamera():
         self.pub_image_detect = rospy.Publisher(self.pub_topic_detect, CompressedImage, queue_size=10)
         # Create a publisher for the CameraInfo topic
         self.pub_cam_inf = rospy.Publisher(self.pub_topic_cam_inf, CameraInfo, queue_size=10)
+        # Create a publisher for the bounding box sizes
+        self.pub_bbox = rospy.Publisher(self.pub_topic_bbox, Float32MultiArray, queue_size=10)
         # Create a timer for the callback
         self.timer = rospy.Timer(rospy.Duration(1.0 / 10), self.publish_camera_info, oneshot=False)
 
@@ -164,6 +168,7 @@ class DepthaiCamera():
 
             while True:
                 found_classes = []
+                
                 # instead of get (blocking) used tryGet (nonblocking) which will return the available data or None otherwise
                 inRgb = q_nn_input.get()
                 inDet = q_nn.get()
@@ -185,6 +190,15 @@ class DepthaiCamera():
                     found_classes = np.unique(found_classes)
                     # print(found_classes)
                     overlay = self.show_yolo(frame, detections)
+
+                    # Prepare and publish bounding box sizes
+                    bbox_sizes = []
+                    for detection in detections:
+                        bbox_sizes.extend([detection.xmin, detection.ymin, detection.xmax, detection.ymax])
+                    bbox_msg = Float32MultiArray()
+                    bbox_msg.data = bbox_sizes
+                    self.pub_bbox.publish(bbox_msg)
+
                 else:
                     print("Detection empty, trying again...")
                     continue

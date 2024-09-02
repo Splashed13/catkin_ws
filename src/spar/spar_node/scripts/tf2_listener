@@ -1,69 +1,59 @@
 #!/usr/bin/env python3
 
-import math
-
 import rospy
 import tf2_ros
 from std_msgs.msg import Time
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, PoseStamped
 
-# Library to send PoseStamped to roi
-from geometry_msgs.msg import PoseStamped
+class Tf2Listener:
+    def __init__(self):
+        # Initialize the ROS node
+        rospy.init_node('tf2_listener', anonymous=True)
+        rospy.loginfo("tf2_listener initializing...")
 
-tfBuffer = None
-tfln = None
-pub_roi = None
+        # Setup tf2 listener and ROI publisher
+        self.tfBuffer = tf2_ros.Buffer()
 
-def callback_target_found(msg_in):
-    # We recieved a "found" timestamp
-    # attempt to find the transformation
-    try:
-        # Lookup transform from "map" to "target" at time "msg_in.data",
-        # and allow for 0.5 seconds to collected any additionally needed data
-        t = tfBuffer.lookup_transform("map", "target", msg_in.data, rospy.Duration(0.5))
+        # Populates the buffer
+        self.tfln = tf2_ros.TransformListener(self.tfBuffer)
+        self.pub_roi = rospy.Publisher('/target_detection/roi', PoseStamped, queue_size=2)
 
-        # Dump information to screen
-        rospy.loginfo("Found target at the following location in the world:")
+        # Setup timestamp subscriber for "target found" at a specific timestamp
+        self.sub_found = rospy.Subscriber('/emulated_uav/target_found', Time, self.callback_target_found)
 
-        # This is the infromation that we want for the ROI.
-        rospy.loginfo("[x: %0.2f; y: %0.2f; z: %0.2f]" % (t.transform.translation.x,
-                            t.transform.translation.y,
-                            t.transform.translation.z))
+    def callback_target_found(self, msg_in):
+        # We received a "found" timestamp, attempt to find the transformation
+        try:
+            # Lookup transform from "map" to "target" at time "msg_in.data"
+            t = self.tfBuffer.lookup_transform("map", "target", msg_in.data, rospy.Duration(0.5))
 
-        rospy.loginfo("Sending ROI to target found coordinates...")
-        pose = PoseStamped()
-        pose.pose.position.x = t.transform.translation.x
-        pose.pose.position.y = t.transform.translation.y
-        pose.pose.position.z = t.transform.translation.z
-        pose.pose.orientation.w = 1.0
-        pose.pose.orientation.x = 0.0
-        pose.pose.orientation.y = 0.0
-        pose.pose.orientation.z = 0.0
-        pub_roi.publish(pose)
-        rospy.loginfo("ROI coordinates sent.")
+            # Log the found target's location
+            rospy.loginfo("Found target at the following location in the world:")
+            rospy.loginfo("[x: %0.2f; y: %0.2f; z: %0.2f]" % (
+                t.transform.translation.x,
+                t.transform.translation.y,
+                t.transform.translation.z))
+
+            # Send ROI to the target's coordinates
+            rospy.loginfo("Sending ROI to target found coordinates...")
+            pose = PoseStamped()
+            pose.pose.position.x = t.transform.translation.x
+            pose.pose.position.y = t.transform.translation.y
+            pose.pose.position.z = t.transform.translation.z
+            pose.pose.orientation.w = 1.0
+            pose.pose.orientation.x = 0.0
+            pose.pose.orientation.y = 0.0
+            pose.pose.orientation.z = 0.0
+            self.pub_roi.publish(pose)
+            rospy.loginfo("ROI coordinates sent.")
         
-    except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
-        rospy.logwarn(e)
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
+            rospy.logwarn(e)
+
+    def run(self):
+        rospy.loginfo("tf2_listener running.")
+        rospy.spin()
 
 if __name__ == '__main__':
-    rospy.init_node('tf2_listener')
-
-    # Setup timestamp subscriber for "target found" at a specific timestamp
-    sub_found = rospy.Subscriber('/emulated_uav/target_found', Time, callback_target_found)
-
-    # Create a listener
-    # This catches all messages sent using TF2
-    tfBuffer = tf2_ros.Buffer()
-    tfln = tf2_ros.TransformListener(tfBuffer)
-
-    # Pulblisher for ROI
-    pub_roi = rospy.Publisher('/target_detection/roi', PoseStamped, queue_size=2)
-
-    rospy.loginfo("tf2_listener running.")
-
-    try:
-        rospy.spin()
-    except rospy.exceptions.ROSInterruptException:
-        sub_found.unregister()
-    finally:
-        rospy.loginfo("tf2_listener shutting down")
+    listener = Tf2Listener()
+    listener.run()

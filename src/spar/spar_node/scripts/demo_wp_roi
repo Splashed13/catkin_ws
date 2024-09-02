@@ -19,6 +19,8 @@ import tf.transformations
 from breadcrumb.srv import RequestPath
 from breadcrumb.srv import RequestPathRequest
 
+from std_msgs.msg import Float32MultiArray 
+
 # This is getting a bit more complicated now, so we'll put our information in
 # a class to keep track of all of our variables. This is not so much different
 # to the previous methods, other than the fact that the class will operate
@@ -31,7 +33,9 @@ class Guidance():
 		if not self.check_waypoints(waypoints):
 			raise ValueError("Invalid waypoint list input!")
 
-		# Internal counter to see what waypoint were are up to
+		self.aruco_detections = []
+
+		# Internal counter to see what waypoint we are up to
 		self.waypoint_counter = 0
 
 		# Set a flag to indicate that we are doing a specific inspection
@@ -52,8 +56,6 @@ class Guidance():
 
 		self.display_path(waypoints, "Waypoints")
 
-		self.survey_altitude = rospy.get_param("~survey_altitude", 1)
-
 		self.current_yaw = None
 		self.current_orientation = None
 		self.survey_altitude = rospy.get_param("~survey_altitude", 1)
@@ -68,6 +70,11 @@ class Guidance():
 		# Set our position and yaw waypoint accuracies
 		self.accuracy_pos = rospy.get_param("~acc_pos", 0.1)
 		self.accuracy_yaw = rospy.get_param("~acc_yaw", 0.1)
+
+		# Detected point pusblisher for visualization
+		self.detection_pub = rospy.Publisher('object_detection_points', Point, queue_size=10)
+		# Aruco subscriber
+		self.sub_aruco = rospy.Subscriber('/emulated_uav/aruco', Float32MultiArray, self.callback_aruco)
 
 		# Create our action client
 		action_ns = rospy.get_param("~action_topic", 'spar/flight')
@@ -187,7 +194,7 @@ class Guidance():
 			return False
 
 		# Check if waypoints are within arena boundaries (8x4) arena
-		if abs(wp[0]) > 4 or abs(wp[1]) > 2.75 or abs(wp[3]) > 4:
+		if abs(wp[0]) > 4 or abs(wp[1]) > 2.75 or abs(wp[3]) > 4 or (wp[3] < 0):
 			rospy.logwarn(f'Waypoint has an invalid size for 0134 must be within arena bounds, problematic waypoints: {wp}')
 			return False
 		
@@ -230,12 +237,17 @@ class Guidance():
 		# XXX:	It would also be a good idea to capture "current yaw" from
 		#		the pose to maintain that throughout a diversion
 		# Set the "diversion waypoint" (at yaw zero)
-		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, msg_in.pose.position.z, self.current_yaw]
+		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, 0.5, self.current_yaw]
 		# Set the "return waypoint" (at yaw zero)
 		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, self.current_yaw]
+		
+		# Send the roi point to rviz
+		self.send_point_to_rviz(msg_in)
 
 		# XXX: Could pause here for a moment with ( "rospy.sleep(...)" ) to make sure the UAV stops correctly
-
+		rospy.sleep(5)
+		
+		rospy.loginfo(f'Sending diversion waypoint: {dwp}')
 		self.send_wp(dwp)
 		self.spar_client.wait_for_result()
 		if self.spar_client.get_state() != GoalStatus.SUCCEEDED:
@@ -258,12 +270,25 @@ class Guidance():
 
 		# "waypoint_counter" represents the "next waypoint"
 		# "waypoint_counter - 1" represents the "current waypoint"
-		rospy.loginfo("Resuming flight plan from waypoint %i!" % (self.waypoint_counter - 1))
-		self.send_wp(self.waypoints[self.waypoint_counter - 1])
+
+		# if conditionals to ensure the return to waypoint is logically sound ie if in breadcrumb mode
+		# ensure the correct waypoint is sent using .send_wp self.
+		if self.breadcrumb_mode:
+			# If we were in breadcrumb mode, return to the next breadcrumb waypoint
+			rospy.loginfo("Resuming breadcrumb path from waypoint %i!" % (self.breadcrumb_waypoint_counter - 1))
+			self.send_wp(self.breadcrumbWPs[self.breadcrumb_waypoint_counter - 1])
+	
+		else:
+			# Otherwise, return to the original waypoint we diverted from
+			# Edge case: when returning to waypoint if there is an obstable in the way 
+			# breadcrumb path-replanning may not work, might need to address this
+			rospy.loginfo("Resuming flight plan from waypoint %i!" % (self.waypoint_counter - 1))
+			self.send_wp(self.waypoints[self.waypoint_counter - 1])
+		
+
 		# Unset our flag that we are performing a diversion
 		# to allow the waypoint timer to take back over
 		self.performing_roi = False
-
 
 	# This function is for convinience to simply send out a new waypoint
 	def send_wp(self, wp):
@@ -292,6 +317,12 @@ class Guidance():
 		self.spar_client.send_goal(goal)
 		 # If shutdown is issued, cancel current mission before rospy is shutdown
 		rospy.on_shutdown(lambda : self.spar_client.cancel_goal())
+
+
+	def callback_aruco(self, msg):
+		"""Callback function for the /emulated_uav/aruco topic."""
+		self.aruco_detections = list(msg.data)  # Store the received data
+		rospy.loginfo("Received Aruco detection: %s", self.aruco_detections)
 
 
 	# This function will fire whenever we recieve a timer event (te) from rospy.Timer()
@@ -383,6 +414,17 @@ class Guidance():
 			elif (self.spar_client.get_state() == GoalStatus.PREEMPTED) or (self.spar_client.get_state() == GoalStatus.ABORTED) or (self.spar_client.get_state() == GoalStatus.REJECTED):
 				rospy.loginfo("Mission cancelled!")
 				rospy.signal_shutdown("cancelled")
+
+	def send_point_to_rviz(self, msg_in):
+		# point publisher code
+		detection_point = Point()
+		detection_point.x = msg_in.pose.position.x
+		detection_point.y = msg_in.pose.position.y
+		detection_point.z = msg_in.pose.position.z 
+
+		self.detection_pub.publish(detection_point)
+		rospy.loginfo("Published object detection point: x: %f, y: %f, z: %f", 
+						detection_point.x, detection_point.y, detection_point.z) 
 
 
 def main(args):
