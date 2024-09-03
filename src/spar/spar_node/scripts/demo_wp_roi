@@ -447,16 +447,16 @@ def main(args):
 		return 
 
 	wps = [[ 0.0, 0.0, survey_altitude, 0.0],
-		[ 2.5, 2.5, survey_altitude, 0.0],
-		[ 2.5, -2.5, survey_altitude, 0.0],
-		[ 1.5, -2.5, survey_altitude, 0.0],
-		[ 1.5, 2.5, survey_altitude, 0.0],
-		[ 0.6, 2.5, survey_altitude, 0.0],
-		[ 0.6, -2.5, survey_altitude, 0.0],
-		[ -0.8, -2.5, survey_altitude, 0.0],
-		[ -0.8, 2.5, survey_altitude, 0.0],
-		[ -2.5, 2.5, survey_altitude, 0.0],
-		[ -2.5, -2.5, survey_altitude, 0.0],
+		[ 2.0, 2.0, survey_altitude, 0.0],
+		[ 2.0, -2.0, survey_altitude, 0.0],
+		[ 1.5, -2.0, survey_altitude, 0.0],
+		[ 1.5, 2.0, survey_altitude, 0.0],
+		[ 0.6, 2.0, survey_altitude, 0.0],
+		[ 0.6, -2.0, survey_altitude, 0.0],
+		[ -0.8, -2.0, survey_altitude, 0.0],
+		[ -0.8, 2.0, survey_altitude, 0.0],
+		[ -2.0, 2.0, survey_altitude, 0.0],
+		[ -2.0, -2.0, survey_altitude, 0.0],
 		[ 0.0, 0.0, survey_altitude, 0.0],
 		[ 0.0, 0.0, 0.0, 0.0]]
 

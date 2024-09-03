@@ -194,7 +194,7 @@ class DepthaiCamera():
                     # Prepare and publish bounding box sizes
                     bbox_sizes = []
                     for detection in detections:
-                        bbox_sizes.extend([detection.xmin, detection.ymin, detection.xmax, detection.ymax])
+                        bbox_sizes.extend([detection.xmin, detection.ymin, detection.xmax, detection.ymax, detection.label])
                     bbox_msg = Float32MultiArray()
                     bbox_msg.data = bbox_sizes
                     self.pub_bbox.publish(bbox_msg)
