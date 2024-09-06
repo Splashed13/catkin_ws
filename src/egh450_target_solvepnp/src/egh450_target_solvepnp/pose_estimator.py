@@ -31,7 +31,7 @@ class PoseEstimator():
 
         # Load in parameters from ROS
         self.param_use_compressed = rospy.get_param("~use_compressed", False)
-        self.param_marker_size = rospy.get_param("~marker_size", 55)
+        self.param_marker_size = rospy.get_param("~marker_size", 0.02)
         self.param_hue_center = rospy.get_param("~hue_center", 170)
         self.param_hue_range = rospy.get_param("~hue_range", 20) / 2
         self.param_sat_min = rospy.get_param("~sat_min", 50)
@@ -63,11 +63,12 @@ class PoseEstimator():
 
         # Generate the model for the pose solver
         marker = self.param_marker_size
-        self.model_object = np.array([(0.0, 0.0, 0.0),
+        self.model_object = np.array([
+                                      (-marker, marker, 0.0),
                                       (marker, marker, 0.0),
                                       (marker, -marker, 0.0),
-                                      (-marker, marker, 0.0),
-                                      (-marker, -marker, 0.0)])
+                                      (-marker, -marker, 0.0)], dtype=np.float32)
+
 
     def shutdown(self):
         # Unregister anything that needs it here
@@ -77,24 +78,23 @@ class PoseEstimator():
 
     # Collect in the camera characteristics
     def callback_info(self, msg_in):
-        self.dist_coeffs = np.array([[msg_in.D[0], msg_in.D[1], msg_in.D[2], msg_in.D[3], msg_in.D[4]]], dtype="double")
+        self.dist_coeffs = np.array([-0.10818, 0.12793, 0.00000, 0.00000, -0.04204], dtype=np.float32)
+        
+        self.camera_matrix = np.array([(615.381, 0.0, 320.0), 
+                                        (0.0, 615.381, 240.0),
+                                        (0.0, 0.0, 1.0)], dtype=np.float32)
 
-        self.camera_matrix = np.array([
-            (msg_in.P[0], msg_in.P[1], msg_in.P[2]),
-            (msg_in.P[4], msg_in.P[5], msg_in.P[6]),
-            (msg_in.P[8], msg_in.P[9], msg_in.P[10])],
-            dtype="double")
+		
 
-        if not self.got_camera_info:
-            rospy.loginfo("Got camera info")
-            self.got_camera_info = True
+        self.got_camera_info = True
 
     def corners_callback(self, msg):
-        rospy.loginfo("Success3")
+
         # Extract the corners and ID from the message
         data = msg.data
         marker_id = int(data[-1])  # The last element is the marker ID
         self.corners = data  # The rest are the corner coordinates
+       
 	
     def callback_img(self, msg_in):
             
@@ -118,18 +118,19 @@ class PoseEstimator():
 				# There are 5 points, one in the center, and one in each corner
                 if(self.corners):
                     self.model_image = np.array([
-                                                ((self.corners[0]+self.corners[2])/2, (self.corners[1]+self.corners[3])/2),
+                                                
                                                 (self.corners[0], self.corners[1]),
                                                 (self.corners[2], self.corners[3]),
                                                 (self.corners[4], self.corners[5]),
                                                 (self.corners[6], self.corners[7])])
+                    rospy.loginfo(self.model_image)
 
                     # Do the SolvePnP method
                     (success, rvec, tvec) = cv2.solvePnP(self.model_object, self.model_image, self.camera_matrix, self.dist_coeffs)
                     rospy.loginfo(success)
                     # If a result was found, send to TF2
                     if success:
-                        rospy.loginfo("Success1")
+
                         msg_out = TransformStamped()
                         msg_out.header = msg_in.header
                         msg_out.child_frame_id = "circle"

@@ -8,6 +8,7 @@ from std_msgs.msg import Int32, MultiArrayDimension, MultiArrayLayout, Float32Mu
 import numpy as np
 
 
+
 class ArucoDetector():
     aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_5X5_100)
     aruco_params = cv2.aruco.DetectorParameters_create()

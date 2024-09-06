@@ -7,7 +7,9 @@ import rospy
 import actionlib
 from actionlib_msgs.msg import GoalStatus
 
-from geometry_msgs.msg import Point, PoseStamped
+from visualization_msgs.msg import Marker # Import for markers
+
+from geometry_msgs.msg import Point, PoseStamped, Vector3
 
 from spar_msgs.msg import FlightMotionAction, FlightMotionGoal
 
@@ -20,6 +22,10 @@ from breadcrumb.srv import RequestPath
 from breadcrumb.srv import RequestPathRequest
 
 from std_msgs.msg import Float32MultiArray 
+
+import random 
+
+from custom_msgs.msg import Detection
 
 # This is getting a bit more complicated now, so we'll put our information in
 # a class to keep track of all of our variables. This is not so much different
@@ -69,18 +75,19 @@ class Guidance():
 		self.vel_yaw = rospy.get_param("~vel_yaw", 0.2)
 		# Set our position and yaw waypoint accuracies
 		self.accuracy_pos = rospy.get_param("~acc_pos", 0.1)
-		self.accuracy_yaw = rospy.get_param("~acc_yaw", 0.1)
+		self.accuracy_yaw = rospy.get_param("~acc_yaw", 2)
 
-		# Detected point pusblisher for visualization
-		self.detection_pub = rospy.Publisher('object_detection_points', Point, queue_size=10)
 		# Aruco subscriber
 		self.sub_aruco = rospy.Subscriber('/emulated_uav/aruco', Float32MultiArray, self.callback_aruco)
+
+		self.marker_pub = rospy.Publisher('visualization_marker', Marker, queue_size=10) 
 
 		# Create our action client
 		action_ns = rospy.get_param("~action_topic", 'spar/flight')
 		self.spar_client = actionlib.SimpleActionClient(action_ns, FlightMotionAction)
 		rospy.loginfo("Waiting for spar...")
 		self.spar_client.wait_for_server()
+		rospy.loginfo("Connected to spar action server")
 
 
 		# Wait to connect with Breadcrumb
@@ -88,6 +95,7 @@ class Guidance():
 		# that does not exist
 		rospy.wait_for_service('/breadcrumb/request_path') # blocking code
 		self.srvc_bc = rospy.ServiceProxy('/breadcrumb/request_path', RequestPath)
+		
 
 		if not rospy.is_shutdown():
 			# Good to go, start mission
@@ -106,7 +114,7 @@ class Guidance():
 			# XXX: These topics could be hard-coded to avoid using a launch file
 			self.sub_pose = rospy.Subscriber("~pose", PoseStamped, self.callback_pose)
 			# Subscriber to catch "ROI" diversion commands
-			self.sub_roi = rospy.Subscriber("~roi", PoseStamped, self.callback_inspect_roi)
+			self.sub_roi = rospy.Subscriber("~roi", Detection, self.callback_inspect_roi)
 
 			# XXX: Could have a publisher to output our waypoint progress
 			# throughout the flight (should publish each time the waypoint
@@ -194,14 +202,14 @@ class Guidance():
 			return False
 
 		# Check if waypoints are within arena boundaries (8x4) arena
-		if abs(wp[0]) > 4 or abs(wp[1]) > 2.75 or abs(wp[3]) > 4 or (wp[3] < 0):
+		if abs(wp[0]) > 4 or abs(wp[1]) > 2.25 or abs(wp[2]) > 4 or (wp[2] < 0):
 			rospy.logwarn(f'Waypoint has an invalid size for 0134 must be within arena bounds, problematic waypoints: {wp}')
 			return False
 		
 		# If we haven't returned false yet, then waypoint looks valid!
 		return True
 	
-	def check_imagegry_waypoints(self, wp):
+	def check_imagery_waypoints(self, wp):
 		pass
 
 	# This function will make sure we shut down the node as safely as possible
@@ -302,7 +310,7 @@ class Guidance():
 		goal.position.x = wp[0]
 		goal.position.y = wp[1]
 		goal.position.z = wp[2]
-		goal.yaw = wp[3]
+		#goal.yaw = wp[3]
 		goal.velocity_vertical = self.vel_linear
 		goal.velocity_horizontal = self.vel_linear
 		goal.yawrate = self.vel_yaw
@@ -409,23 +417,63 @@ class Guidance():
 					# Else the mission is over, shutdown and quit the node
 					# XXX:	This could be used to restart the mission back to the
 					#		first waypoint instead to restart the mission
-					rospy.loginfo("Mission complete!")
+					rospy.loginfo("Mission complete directing to last observed aruco marker for landing!")
+					last_detected_marker = self.aruco_detections[-3:-1]
+					last_detected_marker_x = last_detected_marker[0]
+					last_detected_marker_y = last_detected_marker[1]
+					self.send_wp([last_detected_marker_x, last_detected_marker_y, 0]) # Land on it
+
 					rospy.signal_shutdown("complete")
 			elif (self.spar_client.get_state() == GoalStatus.PREEMPTED) or (self.spar_client.get_state() == GoalStatus.ABORTED) or (self.spar_client.get_state() == GoalStatus.REJECTED):
 				rospy.loginfo("Mission cancelled!")
 				rospy.signal_shutdown("cancelled")
 
-	def send_point_to_rviz(self, msg_in):
-		# point publisher code
-		detection_point = Point()
-		detection_point.x = msg_in.pose.position.x
-		detection_point.y = msg_in.pose.position.y
-		detection_point.z = msg_in.pose.position.z 
+		
+	def publish_detection_marker(self, position, object_name="Detection"):
+		"""Publishes a sphere marker and text label to RViz."""
 
-		self.detection_pub.publish(detection_point)
-		rospy.loginfo("Published object detection point: x: %f, y: %f, z: %f", 
-						detection_point.x, detection_point.y, detection_point.z) 
+		# Create the sphere marker
+		marker = Marker()
+		marker.header.frame_id = "map"
+		marker.ns = "detections"
+		marker.id = random.randint(0, 2**31 - 1) 
+		marker.type = Marker.SPHERE
+		marker.action = Marker.ADD
 
+		marker.pose.position = position
+		marker.pose.orientation.w = 1.0  
+
+		marker.scale = Vector3(0.2, 0.2, 0.2) 
+
+		marker.color.r = 1.0
+		marker.color.g = 0.0
+		marker.color.b = 0.0
+		marker.color.a = 1.0
+
+		self.marker_pub.publish(marker)
+
+		# Create the text marker
+		text_marker = Marker()
+		text_marker.header.frame_id = "map"
+		text_marker.ns = "detections"
+		text_marker.id = 1 
+		text_marker.type = Marker.TEXT_VIEW_FACING
+		text_marker.action = Marker.ADD
+
+		text_marker.pose.position.x = position.x
+		text_marker.pose.position.y = position.y
+		text_marker.pose.position.z = position.z + 0.3 
+
+		text_marker.text = object_name
+		text_marker.scale.z = 0.1  
+		text_marker.color.a = 1.0
+		text_marker.color.r = 1.0
+		text_marker.color.g = 1.0
+		text_marker.color.b = 1.0
+
+		self.marker_pub.publish(text_marker)
+
+	
 
 def main(args):
 	# Initialise ROS

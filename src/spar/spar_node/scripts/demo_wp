@@ -45,18 +45,18 @@ def send_wps(spar_client):
 
 	# List of waypoints
 	# [X, Y, Z, Yaw]
-	wps = [[ 0.0, 0.0, 2.0, 0.0],
-			[ 2.5, 2.5, 2.0, 0.0],
-			[ 2.5, -2.5, 2.0, 0.0],
-			[ 1.5, -2.5, 2.0, 0.0],
-			[ 1.5, 2.5, 2.0, 0.0],
-			[ 0.6, 2.5, 2.0, 0.0],
-			[ 0.6, -2.5, 2.0, 0.0],
-			[ -0.8, -2.5, 2.0, 0.0],
-			[ -0.8, 2.5, 2.0, 0.0],
-			[ -2.5, 2.5, 2.0, 0.0],
-			[ -2.5, -2.5, 2.0, 0.0],
-			[ 0.0, 0.0, 2.0, 0.0],
+	wps = [[ 0.0, 0.0, 1.0, 0.0],
+			[ 2.0, 2.0, 1.0, 0.0],
+			[ 2.0, -2.0, 1.0, 0.0],
+			[ 1.5, -2.0, 1.0, 0.0],
+			[ 1.5, 2.0, 1.0, 0.0],
+			[ 0.6, 2.0, 1.0, 0.0],
+			[ 0.6, -2.0, 1.0, 0.0],
+			[ -0.8, -2.0, 1.0, 0.0],
+			[ -0.8, 2.0, 1.0, 0.0],
+			[ -2.0, 2.0, 1.0, 0.0],
+			[ -2.0, -2.0, 1.0, 0.0],
+			[ 0.0, 0.0, 1.0, 0.0],
 			[ 0.0, 0.0, 0.0, 0.0]]
 
 	# Loop through each waypoint in our list
@@ -86,6 +86,7 @@ def main(args):
 	spar_client = actionlib.SimpleActionClient(action_ns, FlightMotionAction)
 	rospy.loginfo("Waiting for spar...")
 	spar_client.wait_for_server()
+	rospy.loginfo("Connected to spar action server")
 
 	# Send the flight command
 	# This will lock the thread until it is "done"

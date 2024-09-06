@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   sensor_msgs
   cv_bridge
+  custom_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -51,10 +52,7 @@ catkin_python_setup()
 ## Generate messages in the 'msg' folder
 # add_message_files(
 #   FILES
-#   Message1.msg
-#   Message2.msg
-# )
-
+#   )
 ## Generate services in the 'srv' folder
 # add_service_files(
 #   FILES
@@ -73,6 +71,7 @@ catkin_python_setup()
 # generate_messages(
 #   DEPENDENCIES
 #   std_msgs
+#   geometry_msgs # Add geometry_msgs here
 # )
 
 ################################################
@@ -107,7 +106,7 @@ catkin_python_setup()
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES kinetic_sample_sub_python
-#  CATKIN_DEPENDS rospy std_msgs
+# CATKIN_DEPENDS rospy std_msgs geometry_msgs message_runtime custom_msgs 
 #  DEPENDS system_lib
 )
 

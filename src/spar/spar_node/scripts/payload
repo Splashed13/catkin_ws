@@ -1,70 +1,63 @@
+#!/usr/bin/env python3
+
 # Import ROS stuff
 import rospy
 from std_msgs.msg import Bool
 # Import Python/Pi stuff
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
+import gpiozero as GPIO
+from gpiozero.pins.pigpio import PiGPIOFactory  # Import pigpio pin factory
 import time
 
-sub_a = None
+# Set up pigpio pin factory
+pin_factory = PiGPIOFactory()
 
-# will set pin mode, or keep the preset mode
-mode = GPIO.getmode()
-if mode == None:
-    GPIO.setmode(GPIO.BCM)
-else:
-    GPIO.setmode(mode)
-    
+sub_a = None
+sub_b = None
+
 # DEFINE YOUR SERVO PINS
 servo1_pin = 17
 servo2_pin = 18
 
-# SET PINS BE OUTPUTS
-GPIO.setup(servo1_pin, GPIO.OUT)
-GPIO.setup(servo2_pin, GPIO.OUT)
+# gpiozero Servo expects the position to be between -1 (min) and 1 (max)
+servo1 = GPIO.Servo(servo1_pin, pin_factory=pin_factory)
+servo2 = GPIO.Servo(servo2_pin, pin_factory=pin_factory)
 
-# SET OUTPUT PINS TO PWM
-servo1 = GPIO.PWM(servo1_pin, 50)
-servo2 = GPIO.PWM(servo2_pin, 50)
+# Set up servo objects
+# gpiozero Servo expects the position to be between -1 (min) and 1 (max)
+# servo1 = GPIO.Servo(servo1_pin)
+# servo2 = GPIO.Servo(servo2_pin)
 
-# START PWM SO SERVO IS CLOSED
-servo1.start(2)
-servo2.start(2)
+# Function to open and close payload container 1
+def Deploy_Payload_1():
+    # Open servo 1 (position 1 = fully open)
+    print("start")
+    servo1.max()
+    # Wait for deployment to happen
+    time.sleep(1.5)
+    # Close payload 1 (position -1 = fully closed)
+    servo1.min()
+    # Turn off servo 1 (neutral position)
+    time.sleep(4)
+    servo1.value = 0
+    print("finish")
 
-# Servo Move Function #2 (takes a true or false)
-def Deploy_Payload(servo_option):
+# Function to open and close payload container 2
+def Deploy_Payload_2():
+    # Open servo 2 (position 1 = fully open)
+    servo2.max()
+    # Wait for deployment to happen
+    time.sleep(1.5)
+    # Close payload 2 (position -1 = fully closed)
+    servo2.min()
+    # Turn off servo 2 (neutral position)
+    time.sleep(1)
+    servo2.value = 0
 
-    # Check a valid value is recieved
-    if servo_option != True and servo_option != False:
-        print("Invalid Value. Please enter True or False")
-        return
-    
-    #calc the required duty for open and close
-    duty_closed = 2 + (0 // 18)
-    duty_open = 2 + (180 // 18)
 
-    # If servo 1 is picked (True)
-    if servo_option == True:
-        # Open payload 1
-        servo1.ChangeDutyCycle(duty_open)
-        # Wait for deployment to happen
-        time.sleep(1.5)
-        # Close payload 1
-        servo1.ChangeDutyCycle(duty_closed)
-        # Turn of servo 1
-        time.sleep(1)
-        servo1.ChangeDutyCycle(0)
-    
-    # If servo 2 is picked (False)
-    elif servo_option == False:
-        # Open payload 2
-        servo2.ChangeDutyCycle(duty_open)
-        # Wait for deployment to happen
-        time.sleep(1.5)
-        # Close payload 2
-        servo2.ChangeDutyCycle(duty_closed)
-        # Turn of servo 2
-        time.sleep(1)
-        servo2.ChangeDutyCycle(0)
+
+
+
 
 # Deploy servo from ROS
 def callback_a(msg_in):
@@ -74,28 +67,48 @@ def callback_a(msg_in):
 
     # Get the data out of the command
     servo = msg_in.data
-    # Display the data for confirmation
-    if servo == True:
-        print("You have selected Servo 1 (Epipen)")
+    
+    # Filter out bad values
+    if servo != True:
+        print("Incorrect Value, Enter True or False")
+        return
     else:
-        print("You have selected Servo 2 (GPS Tracker)")
+        print("Servo 1 received: ", servo)
 
     # Deploy the respective servo
-    Deploy_Payload(servo)
+    Deploy_Payload_1()
+
+
+# Deploy servo from ROS
+def callback_b(msg_in):
+	# A bool message contains one field called "data" which can be true or false
+	# http://docs.ros.org/melodic/api/std_msgs/html/msg/Bool.html
+	# XXX: The following "GPIO.output" should be replaced to meet the needs of your actuators!
+
+    # Get the data out of the command
+    servo = msg_in.data
+    
+    # Filter out bad values
+    if servo != True:
+        print("Incorrect Value, Enter True or False")
+        return
+    else:
+        print("Servo 2 received: ", servo)
+
+    # Deploy the respective servo
+    Deploy_Payload_2()
 
 	
 def shutdown():
     # Clean up our ROS subscriber if they were set, avoids error messages in logs
     if sub_a is not None:
         sub_a.unregister()
+    if sub_b is not None:
+        sub_b.unregister()
 
     # XXX: Could perform some failsafe actions here!
 
     # nah she'll be right
-
-    # Close down our GPIO
-    GPIO.cleanup()
-
 
 
 # ===================================================================================================
@@ -104,9 +117,11 @@ if __name__ == '__main__':
 	# Setup the ROS backend for this node
 	rospy.init_node('actuator_controller', anonymous=True)
 
-	# Setup the publisher for a single actuator (use additional subscribers for extra actuators)
+	# Setup the publisher for a actuator 1 
 	sub_a = rospy.Subscriber('/actuator_control/actuator_a', Bool, callback_a)
-
+    # Setup the publisher for a actuator 2 
+	sub_b = rospy.Subscriber('/actuator_control/actuator_b', Bool, callback_b)
+    #
 	# Make sure we clean up all our code before exiting
 	rospy.on_shutdown(shutdown)
 
@@ -117,7 +132,7 @@ if __name__ == '__main__':
 
 
 
-print("Test Concluded")
+# print("Test Concluded")
 
 # ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -156,5 +171,106 @@ print("Test Concluded")
 #         servo2.stop()
 #         GPIO.cleanup()
 
-# # run the test function
-# test_function()
+# # run the test fu# # will set pin mode, or keep the preset mode
+# mode = GPIO.getmode()
+# if mode == None:
+#     GPIO.setmode(GPIO.BCM)
+# else:
+#     GPIO.setmode(mode)
+    
+# # DEFINE YOUR SERVO PINS
+# servo1_pin = 17
+# servo2_pin = 18
+
+# # SET PINS BE OUTPUTS
+# GPIO.setup(servo1_pin, GPIO.OUT)
+# GPIO.setup(servo2_pin, GPIO.OUT)
+
+# # SET OUTPUT PINS TO PWM
+# servo1 = GPIO.PWM(servo1_pin, 50)
+# servo2 = GPIO.PWM(servo2_pin, 50)
+
+# # START PWM SO SERVO IS CLOSED
+# servo1.start(2)
+# servo2.start(2)
+
+# # Code to open payload container 1
+# def Deploy_Payload_1():
+
+#     #calc the required duty for open and close
+#     duty_closed = 2 + (0 // 18)
+#     duty_open = 2 + (180 // 18)
+
+#     # Open servo 1
+#     servo1.ChangeDutyCycle(duty_open)
+#     # Wait for deployment to happen
+#     time.sleep(1.5)
+#     # Close payload 1
+#     servo1.ChangeDutyCycle(duty_closed)
+#     # Turn off servo 1
+#     time.sleep(1)
+#     servo1.ChangeDutyCycle(0)
+
+# # Code to open payload container 2
+# def Deploy_Payload_2():
+
+#     #calc the required duty for open and close
+#     duty_closed = 2 + (0 // 18)
+#     duty_open = 2 + (180 // 18)
+
+#     # Open servo 2
+#     servo2.ChangeDutyCycle(duty_open)
+#     # Wait for deployment to happen
+#     time.sleep(1.5)
+#     # Close payload 2
+#     servo2.ChangeDutyCycle(duty_closed)
+#     # Turn off servo 2
+#     time.sleep(1)
+#     servo2.ChangeDutyCycle(0)
+# 
+# ATTEMPT USING gpiozero 
+
+# # # Set up pigpio pin factory
+# pin_factory = PiGPIOFactory()
+
+# sub_a = None
+# sub_b = None
+
+# # DEFINE YOUR SERVO PINS
+# servo1_pin = 17
+# servo2_pin = 18
+
+# # gpiozero Servo expects the position to be between -1 (min) and 1 (max)
+# servo1 = GPIO.Servo(servo1_pin, pin_factory=pin_factory)
+# servo2 = GPIO.Servo(servo2_pin, pin_factory=pin_factory)
+
+# # Set up servo objects
+# # gpiozero Servo expects the position to be between -1 (min) and 1 (max)
+# # servo1 = GPIO.Servo(servo1_pin)
+# # servo2 = GPIO.Servo(servo2_pin)
+
+# # Function to open and close payload container 1
+# def Deploy_Payload_1():
+#     # Open servo 1 (position 1 = fully open)
+#     print("start")
+#     servo1.max()
+#     # Wait for deployment to happen
+#     time.sleep(1.5)
+#     # Close payload 1 (position -1 = fully closed)
+#     servo1.min()
+#     # Turn off servo 1 (neutral position)
+#     time.sleep(4)
+#     servo1.value = 0
+#     print("finish")
+
+# # Function to open and close payload container 2
+# def Deploy_Payload_2():
+#     # Open servo 2 (position 1 = fully open)
+#     servo2.max()
+#     # Wait for deployment to happen
+#     time.sleep(1.5)
+#     # Close payload 2 (position -1 = fully closed)
+#     servo2.min()
+#     # Turn off servo 2 (neutral position)
+#     time.sleep(1)
+#     servo2.value = 0
