@@ -19,6 +19,6 @@ if __name__ == '__main__':
 		pass
 	finally:
 		# Shutdown
-		rospy.loginfo("Shutting down...")
+		
 		pe.shutdown()
-		rospy.loginfo("Done!")
+		

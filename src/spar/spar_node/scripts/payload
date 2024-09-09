@@ -4,13 +4,9 @@
 import rospy
 from std_msgs.msg import Bool
 # Import Python/Pi stuff
-#import RPi.GPIO as GPIO
-import gpiozero as GPIO
-from gpiozero.pins.pigpio import PiGPIOFactory  # Import pigpio pin factory
+from gpiozero import AngularServo
+from gpiozero import Servo
 import time
-
-# Set up pigpio pin factory
-pin_factory = PiGPIOFactory()
 
 sub_a = None
 sub_b = None
@@ -20,51 +16,48 @@ servo1_pin = 17
 servo2_pin = 18
 
 # gpiozero Servo expects the position to be between -1 (min) and 1 (max)
-servo1 = GPIO.Servo(servo1_pin, pin_factory=pin_factory)
-servo2 = GPIO.Servo(servo2_pin, pin_factory=pin_factory)
-
-# Set up servo objects
-# gpiozero Servo expects the position to be between -1 (min) and 1 (max)
 # servo1 = GPIO.Servo(servo1_pin)
+servo1 = AngularServo(servo1_pin, min_angle=0, max_angle=180, min_pulse_width=0.5/1000, max_pulse_width=2.27/1000)
 # servo2 = GPIO.Servo(servo2_pin)
+servo2 = AngularServo(servo2_pin, min_angle=0, max_angle=180, min_pulse_width=0.5/1000, max_pulse_width=2.27/1000)
+
+# start both paylaods off completely closed and off to reduce jitter
+servo1.min()
+servo2.min()
+time.sleep(1.5)
+servo1.angle = None
+servo2.angle = None
 
 # Function to open and close payload container 1
 def Deploy_Payload_1():
+    print("Deploying Payload 1")
     # Open servo 1 (position 1 = fully open)
-    print("start")
     servo1.max()
     # Wait for deployment to happen
-    time.sleep(1.5)
+    time.sleep(2)
     # Close payload 1 (position -1 = fully closed)
     servo1.min()
     # Turn off servo 1 (neutral position)
-    time.sleep(4)
-    servo1.value = 0
-    print("finish")
+    time.sleep(1)
+    servo1.angle = None
+    print("Payload 1 Deployed")
 
 # Function to open and close payload container 2
 def Deploy_Payload_2():
+    print("Deploying Payload 2")
     # Open servo 2 (position 1 = fully open)
     servo2.max()
     # Wait for deployment to happen
-    time.sleep(1.5)
+    time.sleep(2)
     # Close payload 2 (position -1 = fully closed)
     servo2.min()
     # Turn off servo 2 (neutral position)
     time.sleep(1)
-    servo2.value = 0
-
-
-
-
-
+    servo2.angle = None
+    print("payload 2 Deployed")
 
 # Deploy servo from ROS
 def callback_a(msg_in):
-	# A bool message contains one field called "data" which can be true or false
-	# http://docs.ros.org/melodic/api/std_msgs/html/msg/Bool.html
-	# XXX: The following "GPIO.output" should be replaced to meet the needs of your actuators!
-
     # Get the data out of the command
     servo = msg_in.data
     
@@ -73,7 +66,7 @@ def callback_a(msg_in):
         print("Incorrect Value, Enter True or False")
         return
     else:
-        print("Servo 1 received: ", servo)
+        print("Payload 1 Message Recieved: ", servo)
 
     # Deploy the respective servo
     Deploy_Payload_1()
@@ -81,10 +74,6 @@ def callback_a(msg_in):
 
 # Deploy servo from ROS
 def callback_b(msg_in):
-	# A bool message contains one field called "data" which can be true or false
-	# http://docs.ros.org/melodic/api/std_msgs/html/msg/Bool.html
-	# XXX: The following "GPIO.output" should be replaced to meet the needs of your actuators!
-
     # Get the data out of the command
     servo = msg_in.data
     
@@ -93,7 +82,7 @@ def callback_b(msg_in):
         print("Incorrect Value, Enter True or False")
         return
     else:
-        print("Servo 2 received: ", servo)
+        print("Payload 2 Message Recieved: ", servo)
 
     # Deploy the respective servo
     Deploy_Payload_2()
@@ -108,7 +97,14 @@ def shutdown():
 
     # XXX: Could perform some failsafe actions here!
 
-    # nah she'll be right
+    # Set servos to None to stop sending PWM signals
+    servo1.angle = None
+    servo2.angle = None
+
+    # Close the pigpio pin factory to clean up resources
+    # pin_factory.close()
+
+    print("Resources are cleaned up")
 
 
 # ===================================================================================================
@@ -131,45 +127,6 @@ if __name__ == '__main__':
 # ===================================================================================================
 
 
-
-# print("Test Concluded")
-
-# ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-# # SERVO MOVE FUNCTION
-# def set_servo_angle(servo, des_angle):
-#     # calc the req duty cycle
-#     duty = 2 + (des_angle // 18)
-#     # if its servo 1
-#     if servo == 1:
-#         servo1.ChangeDutyCycle(duty)
-#         time.sleep(1)
-#         servo1.ChangeDutyCycle(0)
-#     elif servo == 2:
-#         servo2.ChangeDutyCycle(duty)
-#         time.sleep(1)
-#         servo2.ChangeDutyCycle(0)
-
-# # TEST FUNCTION
-# def test_function():
-#     try:
-#         count = 0
-#         while count < 7:
-#             servo = int(input("Enter the Servo (1 or 2)"))
-#             angle = int(input("Please Enter your desired angle (0 -> 180)"))
-#             # check inputs correct
-#             # or angle > 180
-#             if servo != 1 and servo != 2:
-#                 print("Incorrect Values. Try Again")
-#             else:
-#                 print("Moving Now")
-#                 set_servo_angle(servo, angle)
-#             count += 1
-#     finally:
-#         # cleanup at the end of the program
-#         servo1.stop()
-#         servo2.stop()
-#         GPIO.cleanup()
 
 # # run the test fu# # will set pin mode, or keep the preset mode
 # mode = GPIO.getmode()

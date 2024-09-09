@@ -4,6 +4,7 @@ import rospy
 import tf2_ros
 from std_msgs.msg import Time
 from geometry_msgs.msg import TransformStamped, PoseStamped
+from custom_msgs.msg import Detection
 
 class Tf2Listener:
     def __init__(self):
@@ -16,16 +17,16 @@ class Tf2Listener:
 
         # Populates the buffer
         self.tfln = tf2_ros.TransformListener(self.tfBuffer)
-        self.pub_roi = rospy.Publisher('/target_detection/roi', PoseStamped, queue_size=2)
+        self.pub_roi = rospy.Publisher('/target_detection/roi', Detection, queue_size=2)
 
         # Setup timestamp subscriber for "target found" at a specific timestamp
-        self.sub_found = rospy.Subscriber('/emulated_uav/target_found', Time, self.callback_target_found)
+        self.sub_found = rospy.Subscriber('/emulated_uav/target_found', Detection, self.callback_target_found)
 
-    def callback_target_found(self, msg_in):
+    def callback_target_found(self, msg_in: Detection):
         # We received a "found" timestamp, attempt to find the transformation
         try:
             # Lookup transform from "map" to "target" at time "msg_in.data"
-            t = self.tfBuffer.lookup_transform("map", "target", msg_in.data, rospy.Duration(0.5))
+            t = self.tfBuffer.lookup_transform("map", "target", msg_in.detection_time.data, rospy.Duration(0.5))
 
             # Log the found target's location
             rospy.loginfo("Found target at the following location in the world:")
@@ -36,15 +37,15 @@ class Tf2Listener:
 
             # Send ROI to the target's coordinates
             rospy.loginfo("Sending ROI to target found coordinates...")
-            pose = PoseStamped()
-            pose.pose.position.x = t.transform.translation.x
-            pose.pose.position.y = t.transform.translation.y
-            pose.pose.position.z = t.transform.translation.z
-            pose.pose.orientation.w = 1.0
-            pose.pose.orientation.x = 0.0
-            pose.pose.orientation.y = 0.0
-            pose.pose.orientation.z = 0.0
-            self.pub_roi.publish(pose)
+            msg_in.pose.pose.position.x = t.transform.translation.x
+            msg_in.pose.pose.position.y = t.transform.translation.y
+            msg_in.pose.pose.position.z = t.transform.translation.z
+            msg_in.pose.pose.orientation.w = 1.0
+            msg_in.pose.pose.orientation.x = 0.0
+            msg_in.pose.pose.orientation.y = 0.0
+            msg_in.pose.pose.orientation.z = 0.0
+
+            self.pub_roi.publish(msg_in)
             rospy.loginfo("ROI coordinates sent.")
         
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:

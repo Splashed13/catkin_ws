@@ -5,7 +5,8 @@ import math
 import rospy
 import tf2_ros
 from std_msgs.msg import Time
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, PoseStamped
+from custom_msgs.msg import Detection
 
 # Use this to broadcoast pose estimation
 class Tf2BroadcasterTarget:
@@ -17,21 +18,41 @@ class Tf2BroadcasterTarget:
 
         # Setup tf2 broadcaster and timestamp publisher
         self.tfbr = tf2_ros.TransformBroadcaster()
-        self.pub_found = rospy.Publisher('/emulated_uav/target_found', Time, queue_size=10)
+        self.pub_found = rospy.Publisher('/emulated_uav/target_found', Detection, queue_size=10)
 
-    def send_tf_target(self, estimate_x=-0.4, estimate_y=0.2, estimate_z=1.35):
+    def send_tf_target(self, estimate_x=-0.4, estimate_y=0.2, estimate_z=1.35, detection_type="4"):
+        if detection_type is None:
+            rospy.logwarn("No detection type specified, cannot send 'target detected' message")
+            return 
+
         # Generate our "found" timestamp
         time_found = rospy.Time.now()
 
-        # Create a transform arbitrarily in the camera frame
+        detection_msg = Detection()
+        detection_msg.detection_time = Time()
+        detection_msg.detection_time.data = time_found  # Set current time 
+        detection_msg.object_name = detection_type
+
+        # Initialize the pose field (PoseStamped) with zeros, as it will be overwritten        
+        detection_msg.pose = PoseStamped()
+        detection_msg.pose.header.stamp = time_found
+        detection_msg.pose.header.frame_id = ""
+        detection_msg.pose.pose.position.x = 0.0
+        detection_msg.pose.pose.position.y = 0.0
+        detection_msg.pose.pose.position.z = 0.0
+        detection_msg.pose.pose.orientation.x = 0.0
+        detection_msg.pose.pose.orientation.y = 0.0
+        detection_msg.pose.pose.orientation.z = 0.0
+        detection_msg.pose.pose.orientation.w = 1.0
+
+        # Create a transform in the camera frame based on provided estimates
         t = TransformStamped()
         t.header.stamp = time_found
         t.header.frame_id = self.camera_name
         t.child_frame_id = self.target_name
-        
         t.transform.translation.x = estimate_x
         t.transform.translation.y = estimate_y
-        t.transform.translation.z = estimate_z  # - altitude of the UAV camera Z.
+        t.transform.translation.z = estimate_z
         t.transform.rotation.x = 0.0
         t.transform.rotation.y = 0.0
         t.transform.rotation.z = 0.0
@@ -39,8 +60,9 @@ class Tf2BroadcasterTarget:
 
         # Send the transformation to TF and publish the "found" timestamp
         self.tfbr.sendTransform(t)
-        self.pub_found.publish(time_found)
-        rospy.loginfo(f'tf2_broadcaster_target sent TF: {t.transform.translation} and timestamp: {time_found}')
+        self.pub_found.publish(detection_msg)
+        rospy.loginfo(f'tf2_broadcaster_target sent detection msg- detection type: {detection_type}, pose: {t.transform.translation}')
+
 
 
 if __name__ == '__main__':

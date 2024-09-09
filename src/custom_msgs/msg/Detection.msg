@@ -1,3 +1,4 @@
 Header header
 geometry_msgs/PoseStamped pose
 string object_name
+std_msgs/Time detection_time

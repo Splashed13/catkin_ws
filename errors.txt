@@ -1,0 +1,53 @@
+Identifying as: 10.88.40.148
+gcsteam5@gcsteam5-desktop:~/catkin_ws$ rosrun spar_node tf2_broadcaster_target
+[INFO] [1725860939.027565]: tf2_broadcaster_target sending target found...
+[INFO] [1725860939.033161]: tf2_broadcaster_target sending target found...
+[WARN] [1725860939.099631]: Could not process inbound connection: topic types do not match: [custom_msgs/Detection] vs. [std_msgs/Time]{'callerid': '/tf2_listener', 'md5sum': 'dae425d588b980da519cc207e6d64ee8', 'message_definition': "Header header\ngeometry_msgs/PoseStamped pose\nstring object_name\nstd_msgs/Time detection_time\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data \n# in a particular coordinate frame.\n# \n# sequence ID: consecutively increasing ID \nuint32 seq\n#Two-integer timestamp that is expressed as:\n# * stamp.sec: seconds (stamp_secs) since epoch (in Python the variable is called 'secs')\n# * stamp.nsec: nanoseconds since stamp_secs (in Python the variable is called 'nsecs')\n# time-handling sugar is provided by the client library\ntime stamp\n#Frame this data is associated with\nstring frame_id\n\n================================================================================\nMSG: geometry_msgs/PoseStamped\n# A Pose with reference coordinate frame and timestamp\nHeader header\nPose pose\n\n================================================================================\nMSG: geometry_msgs/Pose\n# A representation of pose in free space, composed of position and orientation. \nPoint position\nQuaternion orientation\n\n================================================================================\nMSG: geometry_msgs/Point\n# This contains the position of a point in free space\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: geometry_msgs/Quaternion\n# This represents an orientation in free space in quaternion form.\n\nfloat64 x\nfloat64 y\nfloat64 z\nfloat64 w\n\n================================================================================\nMSG: std_msgs/Time\ntime data\n
+
+
+
+
+
+
+Identifying as: 10.88.40.148
+gcsteam5@gcsteam5-desktop:~/catkin_ws$ rosrun spar_node tf2_broadcaster.target
+[rosrun] Couldn't find executable named tf2_broadcaster.target below /home/gcsteam5/catkin_ws/src/spar/spar_node
+gcsteam5@gcsteam5-desktop:~/catkin_ws$ rosrun spar_node tf2_broadcaster_target                         
+[INFO] [1725862074.832019]: tf2_broadcaster_target sending target found...
+[INFO] [1725862074.841568]: tf2_broadcaster_target sending target found...
+Traceback (most recent call last):
+  File "/home/gcsteam5/catkin_ws/devel/lib/spar_node/tf2_broadcaster_target", line 15, in <module>
+    exec(compile(fh.read(), python_script, 'exec'), context)
+  File "/home/gcsteam5/catkin_ws/src/spar/spar_node/scripts/tf2_broadcaster_target", line 57, in <module>
+    tf2broadcaster.send_tf_target()
+  File "/home/gcsteam5/catkin_ws/src/spar/spar_node/scripts/tf2_broadcaster_target", line 43, in send_tf_target
+    self.pub_found.publish(time_found)
+  File "/opt/ros/noetic/lib/python3/dist-packages/rospy/topics.py", line 879, in publish
+    data = args_kwds_to_message(self.data_class, args, kwds)
+  File "/opt/ros/noetic/lib/python3/dist-packages/rospy/msg.py", line 122, in args_kwds_to_message
+    return data_class(*args)
+  File "/home/gcsteam5/catkin_ws/devel/lib/python3/dist-packages/custom_msgs/msg/_Detection.py", line 87, in __init__
+    super(Detection, self).__init__(*args, **kwds)
+  File "/opt/ros/noetic/lib/python3/dist-packages/genpy/message.py", line 354, in __init__
+    raise TypeError('Invalid number of arguments, args should be %s' % str(self.__slots__) + ' args are' + str(args))
+TypeError: Invalid number of arguments, args should be ['header', 'pose', 'object_name', 'detection_time'] args are(rospy.Time[1725862076878880739],)
+gcsteam5@gcsteam5-desktop:~/catkin_ws$ 
+
+
+
+
+
+
+
+
+[INFO] [1725866253.252985]: Found target at the following location in the world:
+[INFO] [1725866253.258031]: [x: 2.37; y: 0.84; z: 0.51]
+[INFO] [1725866253.263667]: Sending ROI to target found coordinates...
+[ERROR] [1725866253.272907]: bad callback: <bound method Tf2Listener.callback_target_found of <__main__.Tf2Listener object at 0xffffa05dde80>>
+Traceback (most recent call last):
+  File "/opt/ros/noetic/lib/python3/dist-packages/rospy/topics.py", line 750, in _invoke_callback
+    cb(msg)
+  File "/home/gcsteam5/catkin_ws/src/spar/spar_node/scripts/tf2_listener", line 40, in callback_target_found
+    msg_in.pose.position.x = t.transform.translation.x
+AttributeError: 'PoseStamped' object has no attribute 'position'
+

@@ -6,7 +6,7 @@ import rospy
 import cv2
 import numpy as np
 import tf2_ros
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, PoseStamped
 
 from std_msgs.msg import Time 
 from sensor_msgs.msg import Image 
@@ -14,6 +14,7 @@ from sensor_msgs.msg import CompressedImage
 from sensor_msgs.msg import CameraInfo
 from cv_bridge import CvBridge, CvBridgeError
 from std_msgs.msg import Float32MultiArray  # Import for the corners topic
+from custom_msgs.msg import Detection
 
 
 
@@ -92,7 +93,7 @@ class PoseEstimator():
 
         # Extract the corners and ID from the message
         data = msg.data
-        marker_id = int(data[-1])  # The last element is the marker ID
+        
         self.corners = data  # The rest are the corner coordinates
        
 	
@@ -123,11 +124,11 @@ class PoseEstimator():
                                                 (self.corners[2], self.corners[3]),
                                                 (self.corners[4], self.corners[5]),
                                                 (self.corners[6], self.corners[7])])
-                    rospy.loginfo(self.model_image)
+                
 
                     # Do the SolvePnP method
                     (success, rvec, tvec) = cv2.solvePnP(self.model_object, self.model_image, self.camera_matrix, self.dist_coeffs)
-                    rospy.loginfo(success)
+                    
                     # If a result was found, send to TF2
                     if success:
 
@@ -142,21 +143,13 @@ class PoseEstimator():
                         msg_out.transform.rotation.y = 0.0
                         msg_out.transform.rotation.z = 0.0
 
-                        self.broadcaster.send_tf_target(tvec[0], tvec[1], tvec[2])
+                        marker_id = str(int(self.corners[-1]))  # Get the marker ID (assume it's passed in corners)
+                        self.broadcaster.send_tf_target(tvec[0], tvec[1], tvec[2], marker_id) # send 4th paramater 'detection_type' (string)
+                        success = False
+                        self.corners = []
 
-                        marker_id = int(self.corners[-1])  # Get the marker ID (assume it's passed in corners)
-                        self.tvec_dict[marker_id] = tvec.flatten()
+                  
 
-                        # Convert the dictionary to a two-column array
-                        aruco_array = Float32MultiArray()
-                        for marker_id, tvec_value in self.tvec_dict.items():
-                            aruco_array.data.extend([marker_id, tvec_value[0], tvec_value[1], tvec_value[2]])
-
-                        self.pub_aruco.publish(aruco_array)
-
-                        rospy.loginfo(aruco_array)
-    
-                        rospy.loginfo(tvec)
 
 # Use this to broadcoast pose estimation
 class Tf2BroadcasterTarget:
@@ -168,22 +161,41 @@ class Tf2BroadcasterTarget:
 
         # Setup tf2 broadcaster and timestamp publisher
         self.tfbr = tf2_ros.TransformBroadcaster()
-        self.pub_found = rospy.Publisher('/emulated_uav/target_found', Time, queue_size=10)
+        self.pub_found = rospy.Publisher('/emulated_uav/target_found', Detection, queue_size=10)
 
+    def send_tf_target(self, estimate_x=-0.4, estimate_y=0.2, estimate_z=1.35, detection_type="man"):
+        if detection_type is None:
+            rospy.logwarn("No detection type specified, cannot send 'target detected' message")
+            return 
 
-    def send_tf_target(self, estimate_x=-0.4, estimate_y=0.2, estimate_z=1.35):
         # Generate our "found" timestamp
         time_found = rospy.Time.now()
 
-        # Create a transform arbitrarily in the camera frame
+        detection_msg = Detection()
+        detection_msg.detection_time = Time()
+        detection_msg.detection_time.data = time_found  # Set current time 
+        detection_msg.object_name = detection_type
+
+        # Initialize the pose field (PoseStamped) with zeros, as it will be overwritten        
+        detection_msg.pose = PoseStamped()
+        detection_msg.pose.header.stamp = time_found
+        detection_msg.pose.header.frame_id = ""
+        detection_msg.pose.pose.position.x = 0.0
+        detection_msg.pose.pose.position.y = 0.0
+        detection_msg.pose.pose.position.z = 0.0
+        detection_msg.pose.pose.orientation.x = 0.0
+        detection_msg.pose.pose.orientation.y = 0.0
+        detection_msg.pose.pose.orientation.z = 0.0
+        detection_msg.pose.pose.orientation.w = 1.0
+
+        # Create a transform in the camera frame based on provided estimates
         t = TransformStamped()
         t.header.stamp = time_found
         t.header.frame_id = self.camera_name
         t.child_frame_id = self.target_name
-        
         t.transform.translation.x = estimate_x
         t.transform.translation.y = estimate_y
-        t.transform.translation.z = estimate_z  # - altitude of the UAV camera Z.
+        t.transform.translation.z = estimate_z
         t.transform.rotation.x = 0.0
         t.transform.rotation.y = 0.0
         t.transform.rotation.z = 0.0
@@ -191,11 +203,11 @@ class Tf2BroadcasterTarget:
 
         # Send the transformation to TF and publish the "found" timestamp
         self.tfbr.sendTransform(t)
-        self.pub_found.publish(time_found)
-        rospy.loginfo(f'tf2_broadcaster_target sent TF: {t.transform.translation} and timestamp: {time_found}')
-              
-        
+        self.pub_found.publish(detection_msg)
+        rospy.loginfo(f'tf2_broadcaster_target sent detection msg- detection type: {detection_type}, pose: {t.transform.translation}')
 
+
+              
 def main():
     rospy.init_node('pose_estimator', anonymous=True)
     estimator = PoseEstimator()
