@@ -1,8 +1,11 @@
 <?xml version='1.0'?>
 <launch>
+	<!-- run default="uavteam5" for arena -->
+	<arg name="uav_name" default="emulated_uav"/> 
+
 	<node name="guidance" pkg="spar_node" type="demo_wp_roi" respawn="false" output="screen">
 		<!-- Linear and yaw motion velocities -->
-		<param name="vel_linear" type="double" value="1.0" />
+		<param name="vel_linear" type="double" value="0.5" />
 		<param name="vel_yaw" type="double" value="0.2" />
 
 		<!-- Position and yaw waypoint accuracies -->
@@ -28,5 +31,7 @@
 
 	<!-- Static frame broadcaster -->
 	<node name="tf2_broadcaster_frames" pkg="spar_node" type="tf2_broadcaster_frames" output="screen"/>
+	<param name="uav_name" value="$(arg environment)" />
+	</node>
 	<node name="tf2_listener" pkg="spar_node" type="tf2_listener" output="screen"/>
 </launch>

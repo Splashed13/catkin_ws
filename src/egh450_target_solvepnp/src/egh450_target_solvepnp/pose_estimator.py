@@ -161,7 +161,7 @@ class Tf2BroadcasterTarget:
 
         # Setup tf2 broadcaster and timestamp publisher
         self.tfbr = tf2_ros.TransformBroadcaster()
-        self.pub_found = rospy.Publisher('/emulated_uav/target_found', Detection, queue_size=10)
+        self.pub_found = rospy.Publisher('/uav/target_found', Detection, queue_size=10)
 
     def send_tf_target(self, estimate_x=-0.4, estimate_y=0.2, estimate_z=1.35, detection_type="man"):
         if detection_type is None:
@@ -179,7 +179,7 @@ class Tf2BroadcasterTarget:
         # Initialize the pose field (PoseStamped) with zeros, as it will be overwritten        
         detection_msg.pose = PoseStamped()
         detection_msg.pose.header.stamp = time_found
-        detection_msg.pose.header.frame_id = ""
+
         detection_msg.pose.pose.position.x = 0.0
         detection_msg.pose.pose.position.y = 0.0
         detection_msg.pose.pose.position.z = 0.0

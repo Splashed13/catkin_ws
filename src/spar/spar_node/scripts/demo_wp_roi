@@ -21,7 +21,7 @@ import tf.transformations
 from breadcrumb.srv import RequestPath
 from breadcrumb.srv import RequestPathRequest
 
-from std_msgs.msg import Float32MultiArray 
+from std_msgs.msg import Float32MultiArray, Bool
 
 import random 
 
@@ -81,6 +81,9 @@ class Guidance():
 
 		# Rviz marker publisher
 		self.marker_pub = rospy.Publisher('visualization_marker', Marker, queue_size=10) 
+
+		self.actuator_pub_tracker = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=10)
+		self.actuator_pub_epipen = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=10)
 
 		# Create our action client
 		action_ns = rospy.get_param("~action_topic", 'spar/flight')
@@ -215,6 +218,7 @@ class Guidance():
 	# This function will fire whenever a ROI pose message is sent
 	# It is also responsible for handling the ROI "inspection task"
 	def callback_inspect_roi(self, msg_in: Detection):
+		rospy.loginfo(f'Recieved roi message object {msg_in.object_name}: {[msg_in.pose.pose.position.x, msg_in.pose.pose.position.y, msg_in.pose.pose.position.z]}')
 		"""Callback for ROI detection messages."""
 		is_aruco = False
 		try:
@@ -258,7 +262,7 @@ class Guidance():
 		self.spar_client.cancel_goal()
 
 		start_location = self.current_location
-		dwp = [msg_in.pose.pose.position.x, msg_in.pose.pose.position.y, 0.5, 0]
+		dwp = [msg_in.pose.pose.position.x, msg_in.pose.pose.position.y, 1, 0]
 		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0]
 
 		rospy.sleep(5)
@@ -271,7 +275,12 @@ class Guidance():
 			rospy.signal_shutdown("cancelled")
 			return
 
-		rospy.loginfo("Reached diversion ROI!")
+		rospy.loginfo("Reached diversion ROI!")	
+		if(msg_in.object_name == "bag"):
+			self.actuator_pub_epipen.publish(True)
+		if(msg_in.object_name == "man"):
+			self.actuator_pub_tracker.publish(True)
+
 		rospy.sleep(rospy.Duration(10))
 
 		rospy.loginfo("Returning to flight plan...")
@@ -419,6 +428,10 @@ class Guidance():
 						rospy.loginfo("Mission complete no observed aruco marker returning to centre of map!")
 						self.send_wp([0, 0, 0, 0])
 
+					if self.spar_client.get_state() == GoalStatus.SUCCEEDED:
+						rospy.loginfo("Final waypoint reached successfully! Shutting down process")
+						rospy.signal_shutdown("complete")
+
 			elif (self.spar_client.get_state() == GoalStatus.PREEMPTED) or (self.spar_client.get_state() == GoalStatus.ABORTED) or (self.spar_client.get_state() == GoalStatus.REJECTED):
 				rospy.loginfo("Mission cancelled!")
 				rospy.signal_shutdown("cancelled")
@@ -485,6 +498,8 @@ class Guidance():
 
 		self.marker_pub.publish(text_marker)
 
+		rospy.loginfo(f'Publising marker to rviz {object_name}: {position}')    
+
 
 def main(args):
 	# Initialise ROS
@@ -508,14 +523,18 @@ def main(args):
 	wps = [[ 0.0, 0.0, survey_altitude, 0.0],
 		[ 2.0, 2.0, survey_altitude, 0.0],
 		[ 2.0, -2.0, survey_altitude, 0.0],
-		[ 1.5, -2.0, survey_altitude, 0.0],
-		[ 1.5, 2.0, survey_altitude, 0.0],
+		[ 1.2, -2.0, survey_altitude, 0.0],
+		[ 1.2, 2.0, survey_altitude, 0.0],
 		[ 0.6, 2.0, survey_altitude, 0.0],
 		[ 0.6, -2.0, survey_altitude, 0.0],
-		[ -0.8, -2.0, survey_altitude, 0.0],
-		[ -0.8, 2.0, survey_altitude, 0.0],
-		[ -2.0, 2.0, survey_altitude, 0.0],
-		[ -2.0, -2.0, survey_altitude, 0.0],
+		[ -0.6, -2.0, survey_altitude, 0.0],
+		[ -0.6, 2.0, survey_altitude, 0.0],
+		[ -1.0, 2.0, survey_altitude, 0.0],
+		[ -1.0, -2.0, survey_altitude, 0.0],
+		[ -1.8, -2.0, survey_altitude, 0.0],
+		[ -1.8, 2.0, survey_altitude, 0.0],
+		[ -2.5, 2.0, survey_altitude, 0.0],
+		[ -2.5, -2.0, survey_altitude, 0.0],
 		[ 0.0, 0.0, survey_altitude, 0.0],
 		[ 0.0, 0.0, 0.0, 0.0]]
 

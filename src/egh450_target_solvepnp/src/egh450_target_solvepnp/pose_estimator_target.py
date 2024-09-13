@@ -33,8 +33,8 @@ class PoseEstimator():
 
         # Load in parameters from ROS
         self.param_use_compressed = rospy.get_param("~use_compressed", False)
-        self.param_marker_size_human = rospy.get_param("~marker_size", 0.1)
-        self.param_marker_size_bag = rospy.get_param("~marker_size", 0.2)
+        self.param_marker_size_human = rospy.get_param("~marker_size", 0.05)
+        self.param_marker_size_bag = rospy.get_param("~marker_size", 0.1)
 
         # Set additional camera parameters
         self.got_camera_info = False
@@ -64,12 +64,12 @@ class PoseEstimator():
         self.model_object1 = np.array([
                                       (-marker1, marker1, 0.0),
                                       (marker1, marker1, 0.0),
-                                      (-marker1, marker1, 0.0),
+                                      (marker1, -marker1, 0.0),
                                       (-marker1, -marker1, 0.0)])
         self.model_object2 = np.array([
                                       (-marker2, marker2, 0.0),
                                       (marker2, marker2, 0.0),
-                                      (-marker2, marker2, 0.0),
+                                      (marker2, -marker2, 0.0),
                                       (-marker2, -marker2, 0.0)])
         
         self
@@ -123,8 +123,8 @@ class PoseEstimator():
                     self.model_image = np.array([
                                                 (self.target[0], self.target[3]),
                                                 (self.target[2], self.target[3]),
-                                                (self.target[0], self.target[1]),
-                                                (self.target[2], self.target[1])])
+                                                (self.target[2], self.target[1]),
+                                                (self.target[0], self.target[1])])
 
                     # Do the SolvePnP method
                     class_id = int(self.target[-1])  # Get the marker ID (assume it's passed in corners)
@@ -174,7 +174,7 @@ class Tf2BroadcasterTarget:
 
         # Setup tf2 broadcaster and timestamp publisher
         self.tfbr = tf2_ros.TransformBroadcaster()
-        self.pub_found = rospy.Publisher('/emulated_uav/target_found', Detection, queue_size=10)
+        self.pub_found = rospy.Publisher('/uav/target_found', Detection, queue_size=10)
 
     def send_tf_target(self, estimate_x=-0.4, estimate_y=0.2, estimate_z=1.35, detection_type="man"):
         if detection_type is None:
@@ -192,7 +192,7 @@ class Tf2BroadcasterTarget:
         # Initialize the pose field (PoseStamped) with zeros, as it will be overwritten        
         detection_msg.pose = PoseStamped()
         detection_msg.pose.header.stamp = time_found
-        detection_msg.pose.header.frame_id = ""
+
         detection_msg.pose.pose.position.x = 0.0
         detection_msg.pose.pose.position.y = 0.0
         detection_msg.pose.pose.position.z = 0.0

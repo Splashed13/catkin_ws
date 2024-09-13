@@ -20,7 +20,7 @@ class Tf2Listener:
         self.pub_roi = rospy.Publisher('/target_detection/roi', Detection, queue_size=2)
 
         # Setup timestamp subscriber for "target found" at a specific timestamp
-        self.sub_found = rospy.Subscriber('/emulated_uav/target_found', Detection, self.callback_target_found)
+        self.sub_found = rospy.Subscriber('/uav/target_found', Detection, self.callback_target_found)
 
     def callback_target_found(self, msg_in: Detection):
         # We received a "found" timestamp, attempt to find the transformation
