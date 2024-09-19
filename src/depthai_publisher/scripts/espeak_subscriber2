@@ -4,28 +4,31 @@ import rospy
 from std_msgs.msg import Float32MultiArray
 import subprocess
 
-def id_callback(data):
-    # Check if the ID is detected (non-zero positive value)
+# Set to keep track of vocalized numbers
+vocalized_numbers = set()
 
+def id_callback(data):
+    global vocalized_numbers
+
+    # Check if the ID is detected (non-zero positive value)
     aruco_id = data.data
-    if aruco_id(-1) >= 0:
-        # Log the numeric data received
-        rospy.loginfo("Received numeric data: %d", aruco_id(-1))
-        
-        # Use eSpeak to synthesize the speech
-        try:
-            subprocess.run(['espeak', f'The number detected is {aruco_id(-1)}'], check=True)
-        except subprocess.CalledProcessError as e:
-            rospy.logerr(f"Error running eSpeak: {e}")
-    else:
-        # Log that the ID is not found
-        rospy.loginfo("ID not found")
-        
-        # Use eSpeak to synthesize the speech for ID not found
-        try:
-            subprocess.run(['espeak', 'ID not found'], check=True)
-        except subprocess.CalledProcessError as e:
-            rospy.logerr(f"Error running eSpeak: {e}")
+    last_number = aruco_id[-1] if aruco_id else None
+
+    if last_number >= 0:
+        if last_number not in vocalized_numbers:
+            # Log the numeric data received
+            rospy.loginfo("Received numeric data: %d", last_number)
+            
+            # Use eSpeak to synthesize the speech
+            try:
+                subprocess.run(['espeak', f'The number detected is {last_number}'], check=True)
+                # Add the number to the set of vocalized numbers
+                vocalized_numbers.add(last_number)
+            except subprocess.CalledProcessError as e:
+                rospy.logerr(f"Error running eSpeak: {e}")
+        else:
+            rospy.loginfo("Number %d has already been vocalized.", last_number)
+
 
 def main():
     rospy.init_node('espeak_subscriber', anonymous=True)

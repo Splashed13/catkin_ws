@@ -131,10 +131,10 @@ class PoseEstimator():
                     class_str = None
                     if (class_id == 0):
                         self.model_object = self.model_object1
-                        class_str = ("bag")
+                        class_str = "bag"
                     elif (class_id == 4):
                         self.model_object = self.model_object2
-                        class_str = ("man")
+                        class_str = "man"
                     
 
 
@@ -142,20 +142,6 @@ class PoseEstimator():
        
                     # If a result was found, send to TF2
                     if success:
-     
-                        msg_out = TransformStamped()
-                        msg_out.header = msg_in.header
-                        msg_out.child_frame_id = "circle"
-                        msg_out.transform.translation.x = tvec[0]
-                        msg_out.transform.translation.y = tvec[1]
-                        msg_out.transform.translation.z = tvec[2]
-                        msg_out.transform.rotation.w = 1.0	# Could use rvec, but need to convert from DCM to quaternion first
-                        msg_out.transform.rotation.x = 0.0
-                        msg_out.transform.rotation.y = 0.0
-                        msg_out.transform.rotation.z = 0.0
-
-                        
-
                         
                         self.broadcaster.send_tf_target(tvec[0], tvec[1], tvec[2], class_str) # send 4th paramater 'detection_type' (string)
                         success = False

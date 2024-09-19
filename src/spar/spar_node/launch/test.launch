@@ -1,0 +1,10 @@
+<?xml version='1.0'?>
+<launch>
+    <!-- Define the UAV name argument (default is "emulated_uav") -->
+    <arg name="uav_name" default="emulated_uav"/> 
+
+    <!-- Static frame broadcaster -->
+    <node name="tf2_broadcaster_frames" pkg="spar_node" type="tf2_broadcaster_frames" output="screen">
+        <param name="uav_name" value="$(arg uav_name)" />
+    </node>
+</launch>

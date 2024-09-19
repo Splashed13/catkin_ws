@@ -20,7 +20,7 @@ class Tf2BroadcasterTarget:
         self.tfbr = tf2_ros.TransformBroadcaster()
         self.pub_found = rospy.Publisher('/uav/target_found', Detection, queue_size=10)
 
-    def send_tf_target(self, estimate_x=-0.4, estimate_y=0.2, estimate_z=1.35, detection_type="12"):
+    def send_tf_target(self, estimate_x=-0.4, estimate_y=0.2, estimate_z=1.35, detection_type="bag"):
         if detection_type is None:
             rospy.logwarn("No detection type specified, cannot send 'target detected' message")
             return 
@@ -36,8 +36,6 @@ class Tf2BroadcasterTarget:
         # Initialize the pose field (PoseStamped) with zeros, as it will be overwritten        
         detection_msg.pose = PoseStamped()
         detection_msg.pose.header.stamp = time_found
-        detection_msg.pose.header.frame_id = self.camera_name
-        detection_msg.pose.header.child_frame_id = self.target_name
         detection_msg.pose.pose.position.x = 0.0
         detection_msg.pose.pose.position.y = 0.0
         detection_msg.pose.pose.position.z = 0.0

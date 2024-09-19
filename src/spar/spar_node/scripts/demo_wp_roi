@@ -80,7 +80,7 @@ class Guidance():
 		self.sub_aruco = rospy.Subscriber('/emulated_uav/aruco', Float32MultiArray, self.callback_aruco)
 
 		# Rviz marker publisher
-		self.marker_pub = rospy.Publisher('visualization_marker', Marker, queue_size=10) 
+		self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=10) 
 
 		self.actuator_pub_tracker = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=10)
 		self.actuator_pub_epipen = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=10)
@@ -235,6 +235,7 @@ class Guidance():
 			# If not processed, store the detection in the dictionary
 			self.detected_markers[aruco_marker_id] = [msg_in.pose.pose.position.x, msg_in.pose.pose.position.y, msg_in.pose.pose.position.z] 
 			self.publish_detection_marker(msg_in.pose.pose.position, msg_in.object_name)
+			rospy.loginfo(f'Sending vizualisation marker for aruco marker: {msg_in.object_name}')
 			self.last_detected_marker = aruco_marker_id
 			return
 
@@ -242,6 +243,7 @@ class Guidance():
 		if msg_in.object_name == "man":
 			if not self.found_man:
 				self.publish_detection_marker(msg_in.pose.pose.position, msg_in.object_name)
+				rospy.loginfo(f'Sending vizualisation marker for {msg_in.object_name}')
 				self.found_man = True
 			else:
 				rospy.loginfo(f"Ignoring detection of {msg_in.object_name}, already processed.")
@@ -251,6 +253,7 @@ class Guidance():
 		if msg_in.object_name == "bag": 
 			if not self.found_backpack:
 				self.publish_detection_marker(msg_in.pose.pose.position, msg_in.object_name)
+				rospy.loginfo(f'Sending vizualisation marker for {msg_in.object_name}')
 				self.found_backpack = True
 			else:
 				rospy.loginfo(f"Ignoring detection of {msg_in.object_name}, already processed.")
@@ -278,8 +281,10 @@ class Guidance():
 		rospy.loginfo("Reached diversion ROI!")	
 		if(msg_in.object_name == "bag"):
 			self.actuator_pub_epipen.publish(True)
+			rospy.loginfo("Sending found bag message to payload node")
 		if(msg_in.object_name == "man"):
 			self.actuator_pub_tracker.publish(True)
+			rospy.loginfo("Sending found bag message to man node")
 
 		rospy.sleep(rospy.Duration(10))
 
@@ -529,10 +534,10 @@ def main(args):
 		[ 0.6, -2.0, survey_altitude, 0.0],
 		[ -0.6, -2.0, survey_altitude, 0.0],
 		[ -0.6, 2.0, survey_altitude, 0.0],
-		[ -1.0, 2.0, survey_altitude, 0.0],
-		[ -1.0, -2.0, survey_altitude, 0.0],
-		[ -1.8, -2.0, survey_altitude, 0.0],
-		[ -1.8, 2.0, survey_altitude, 0.0],
+		[ -1.2, 2.0, survey_altitude, 0.0],
+		[ -1.2, -2.0, survey_altitude, 0.0],
+		[ -2.0, -2.0, survey_altitude, 0.0],
+		[ -2.0, 2.0, survey_altitude, 0.0],
 		[ -2.5, 2.0, survey_altitude, 0.0],
 		[ -2.5, -2.0, survey_altitude, 0.0],
 		[ 0.0, 0.0, survey_altitude, 0.0],

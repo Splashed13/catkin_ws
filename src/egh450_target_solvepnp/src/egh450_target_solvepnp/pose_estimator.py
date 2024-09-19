@@ -132,17 +132,6 @@ class PoseEstimator():
                     # If a result was found, send to TF2
                     if success:
 
-                        msg_out = TransformStamped()
-                        msg_out.header = msg_in.header
-                        msg_out.child_frame_id = "circle"
-                        msg_out.transform.translation.x = tvec[0]
-                        msg_out.transform.translation.y = tvec[1]
-                        msg_out.transform.translation.z = tvec[2]
-                        msg_out.transform.rotation.w = 1.0	# Could use rvec, but need to convert from DCM to quaternion first
-                        msg_out.transform.rotation.x = 0.0
-                        msg_out.transform.rotation.y = 0.0
-                        msg_out.transform.rotation.z = 0.0
-
                         marker_id = str(int(self.corners[-1]))  # Get the marker ID (assume it's passed in corners)
                         self.broadcaster.send_tf_target(tvec[0], tvec[1], tvec[2], marker_id) # send 4th paramater 'detection_type' (string)
                         success = False
