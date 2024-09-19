@@ -47,6 +47,13 @@ When the node first loads, it checks to see if any obstacles have been staticall
 
    ```roslaunch spar_node demo_wp_roi.launch```
 
+7. Run vision
+```
+rosrun depthai_publisher dai_publisher_yolov5_runner
+rosrun depthai_publisher aruco_subscriber
+roslaunch egh450_target_solvepnp pose_estimator.launch
+```
+
 ## RQT for monitoring simulation workspace
 
 1. Run `rqt` in a terminal and click plugins -> topic monitor
