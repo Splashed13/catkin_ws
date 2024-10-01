@@ -42,6 +42,8 @@ When the node first loads, it checks to see if any obstacles have been staticall
 - `demo_wp`: Performs a preset 4-waypoint task from with a range of configurable settings (waypoint radius, movement speed, _etc._)
 
    ``` rosrun spar_node demo_wp ```
+  or run in arena:
+```roslaunch spar_node demo_wp_roi.launch uav_name:=uavteam5```
 
 - `demo_wp_roi`: Performs a preset4-waypoint task as above, with additional code to perform a diversion and continuation if a `geometry_msgs/PoseStamped` message is recieved.
 
