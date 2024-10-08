@@ -3,6 +3,10 @@
 import rospy
 from std_msgs.msg import Float32MultiArray
 import subprocess
+from visualization_msgs.msg import Marker
+import os
+import threading
+import time
 
 # Set to keep track of vocalized numbers
 vocalized_numbers = set()
@@ -14,7 +18,7 @@ def id_callback(data):
     aruco_id = data.data
     last_number = aruco_id[-1] if aruco_id else None
 
-    if last_number >= 0:
+    if last_number is not None and last_number >= 0:
         if last_number not in vocalized_numbers:
             # Log the numeric data received
             rospy.loginfo("Received numeric data: %d", last_number)
@@ -29,12 +33,68 @@ def id_callback(data):
         else:
             rospy.loginfo("Number %d has already been vocalized.", last_number)
 
+class MarkerListener:
+    def __init__(self):
+        # Initialize the ROS node
+    #    rospy.init_node('marker_listener', anonymous=True)
+
+        # Subscribe to the /visualization_marker topic
+        self.sub_marker = rospy.Subscriber('/visualization_marker', Marker, self.marker_callback)
+        if self.sub_marker:
+            rospy.loginfo('subscribed to visualization marker topic')
+
+    def vocalize(self, message):
+        # Use eSpeak to vocalize the message
+        os.system(f'espeak "{message}"')
+
+    def marker_callback(self, marker):
+        # Check if the marker text is "man" or "bag"
+        # rospy.loginfo(marker)
+        if marker.text == "man" or marker.text == "bag":
+            # Retrieve the marker's position
+            position_x = marker.pose.position.x
+            position_y = marker.pose.position.y
+            p_x = round(position_x, 2)
+            p_y = round(position_y, 2)
+            
+            # Create a vocalization message
+            vocalization_message = f"Detected {marker.text} at position: ({p_x}, {p_y})"
+            
+            # Vocalize the message
+            self.vocalize(vocalization_message)
+
+            # Log the information
+            rospy.loginfo(vocalization_message)
+        else:
+            rospy.loginfo(f"Ignored marker with text: {marker.text}")
+
+    # def spin(self):
+    #     # Keep the node running
+    #     rospy.spin()
+
+def reset_vocalized_numbers():
+    global vocalized_numbers
+    while not rospy.is_shutdown():
+        time.sleep(30)
+        vocalized_numbers.clear()
+        rospy.loginfo("Cleared vocalized numbers.")
 
 def main():
     rospy.init_node('espeak_subscriber', anonymous=True)
     rospy.Subscriber('/aruco_corners', Float32MultiArray, id_callback)
     rospy.loginfo('espeak activated')
+    listener = MarkerListener()
+    # listener.spin()
+
+    # Start a thread to reset vocalized_numbers every 5 seconds
+    reset_thread = threading.Thread(target=reset_vocalized_numbers)
+    reset_thread.start()
+
     rospy.spin()
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+     
+    except rospy.ROSInterruptException:
+        pass

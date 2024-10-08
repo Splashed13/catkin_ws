@@ -20,7 +20,7 @@ class Tf2BroadcasterTarget:
         self.tfbr = tf2_ros.TransformBroadcaster()
         self.pub_found = rospy.Publisher('/uav/target_found', Detection, queue_size=10)
 
-    def send_tf_target(self, estimate_x=-0.4, estimate_y=0.2, estimate_z=1.35, detection_type="bag"):
+    def send_tf_target(self, estimate_x=-0.4, estimate_y=0.2, estimate_z=1.35, detection_type="man"):
         if detection_type is None:
             rospy.logwarn("No detection type specified, cannot send 'target detected' message")
             return 

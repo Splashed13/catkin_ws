@@ -170,6 +170,7 @@ target_link_libraries(${PROJECT_NAME}
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
   scripts/demo_wp
+  scripts/demo_wp_roi
   scripts/goto
   scripts/takeoff
   scripts/land

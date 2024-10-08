@@ -15,7 +15,6 @@ camera_name = "camera"
 def send_tf_camera():
     # Fetch the UAV name parameter after the node is initialized
     uav_name = rospy.get_param('~uav_name', 'emulated_uav') 
-
     # Create a static transform that is slightly
     # below the UAV and pointing downwards
     t = TransformStamped()

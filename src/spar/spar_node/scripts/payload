@@ -8,6 +8,38 @@ from gpiozero import AngularServo
 from gpiozero import Servo
 import time
 
+# Set all necessary permissions -----------
+import subprocess
+
+def set_permissions(password):
+    try:
+        # Prepare the password as input for the sudo command
+        password_input = password + "\n"
+
+        # Set permissions for /dev/mem
+        process_mem = subprocess.run(
+            ['sudo', '-S', 'chmod', '777', '/dev/mem'], 
+            input=password_input, 
+            text=True, 
+            check=True
+        )
+        print("Permissions for /dev/mem set successfully.")
+        
+        # Set permissions for /dev/gpiomem
+        process_gpiomem = subprocess.run(
+            ['sudo', '-S', 'chmod', '777', '/dev/gpiomem'], 
+            input=password_input, 
+            text=True, 
+            check=True
+        )
+        print("Permissions for /dev/gpiomem set successfully.")
+    
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred: {e}")
+
+sudo_password = "gcsteam5"
+set_permissions(sudo_password)
+# ---------------------------------------
 
 sub_a = None
 sub_b = None
@@ -72,7 +104,6 @@ def callback_a(msg_in):
     # Deploy the respective servo
     Deploy_Payload_1()
 
-
 # Deploy servo from ROS
 def callback_b(msg_in):
     # Get the data out of the command
@@ -126,109 +157,3 @@ if __name__ == '__main__':
 	rospy.spin()
 
 # ===================================================================================================
-
-
-
-# # run the test fu# # will set pin mode, or keep the preset mode
-# mode = GPIO.getmode()
-# if mode == None:
-#     GPIO.setmode(GPIO.BCM)
-# else:
-#     GPIO.setmode(mode)
-    
-# # DEFINE YOUR SERVO PINS
-# servo1_pin = 17
-# servo2_pin = 18
-
-# # SET PINS BE OUTPUTS
-# GPIO.setup(servo1_pin, GPIO.OUT)
-# GPIO.setup(servo2_pin, GPIO.OUT)
-
-# # SET OUTPUT PINS TO PWM
-# servo1 = GPIO.PWM(servo1_pin, 50)
-# servo2 = GPIO.PWM(servo2_pin, 50)
-
-# # START PWM SO SERVO IS CLOSED
-# servo1.start(2)
-# servo2.start(2)
-
-# # Code to open payload container 1
-# def Deploy_Payload_1():
-
-#     #calc the required duty for open and close
-#     duty_closed = 2 + (0 // 18)
-#     duty_open = 2 + (180 // 18)
-
-#     # Open servo 1
-#     servo1.ChangeDutyCycle(duty_open)
-#     # Wait for deployment to happen
-#     time.sleep(1.5)
-#     # Close payload 1
-#     servo1.ChangeDutyCycle(duty_closed)
-#     # Turn off servo 1
-#     time.sleep(1)
-#     servo1.ChangeDutyCycle(0)
-
-# # Code to open payload container 2
-# def Deploy_Payload_2():
-
-#     #calc the required duty for open and close
-#     duty_closed = 2 + (0 // 18)
-#     duty_open = 2 + (180 // 18)
-
-#     # Open servo 2
-#     servo2.ChangeDutyCycle(duty_open)
-#     # Wait for deployment to happen
-#     time.sleep(1.5)
-#     # Close payload 2
-#     servo2.ChangeDutyCycle(duty_closed)
-#     # Turn off servo 2
-#     time.sleep(1)
-#     servo2.ChangeDutyCycle(0)
-# 
-# ATTEMPT USING gpiozero 
-
-# # # Set up pigpio pin factory
-# pin_factory = PiGPIOFactory()
-
-# sub_a = None
-# sub_b = None
-
-# # DEFINE YOUR SERVO PINS
-# servo1_pin = 17
-# servo2_pin = 18
-
-# # gpiozero Servo expects the position to be between -1 (min) and 1 (max)
-# servo1 = GPIO.Servo(servo1_pin, pin_factory=pin_factory)
-# servo2 = GPIO.Servo(servo2_pin, pin_factory=pin_factory)
-
-# # Set up servo objects
-# # gpiozero Servo expects the position to be between -1 (min) and 1 (max)
-# # servo1 = GPIO.Servo(servo1_pin)
-# # servo2 = GPIO.Servo(servo2_pin)
-
-# # Function to open and close payload container 1
-# def Deploy_Payload_1():
-#     # Open servo 1 (position 1 = fully open)
-#     print("start")
-#     servo1.max()
-#     # Wait for deployment to happen
-#     time.sleep(1.5)
-#     # Close payload 1 (position -1 = fully closed)
-#     servo1.min()
-#     # Turn off servo 1 (neutral position)
-#     time.sleep(4)
-#     servo1.value = 0
-#     print("finish")
-
-# # Function to open and close payload container 2
-# def Deploy_Payload_2():
-#     # Open servo 2 (position 1 = fully open)
-#     servo2.max()
-#     # Wait for deployment to happen
-#     time.sleep(1.5)
-#     # Close payload 2 (position -1 = fully closed)
-#     servo2.min()
-#     # Turn off servo 2 (neutral position)
-#     time.sleep(1)
-#     servo2.value = 0

@@ -24,7 +24,7 @@ class PoseEstimator():
         self.corners = None
         self.tvec_dict = {}
         self.model_object = None
-        
+        self.target = None
         self.pub_aruco = rospy.Publisher('/emulated_uav/target', Float32MultiArray, queue_size=10)
 
         
@@ -33,7 +33,7 @@ class PoseEstimator():
 
         # Load in parameters from ROS
         self.param_use_compressed = rospy.get_param("~use_compressed", False)
-        self.param_marker_size_human = rospy.get_param("~marker_size", 0.05)
+        self.param_marker_size_human = rospy.get_param("~marker_size", 0.1)
         self.param_marker_size_bag = rospy.get_param("~marker_size", 0.1)
 
         # Set additional camera parameters
@@ -62,17 +62,17 @@ class PoseEstimator():
         marker1 = self.param_marker_size_human
         marker2 = self.param_marker_size_bag
         self.model_object1 = np.array([
-                                      (-marker1, marker1, 0.0),
-                                      (marker1, marker1, 0.0),
-                                      (marker1, -marker1, 0.0),
-                                      (-marker1, -marker1, 0.0)])
+                                      (-marker1, marker1, 0.0), #TL
+                                      (marker1, marker1, 0.0),  #TR
+                                      (marker1, -marker1, 0.0), #BR
+                                      (-marker1, -marker1, 0.0)]) #BL
         self.model_object2 = np.array([
                                       (-marker2, marker2, 0.0),
                                       (marker2, marker2, 0.0),
                                       (marker2, -marker2, 0.0),
                                       (-marker2, -marker2, 0.0)])
         
-        self
+        
 
     def shutdown(self):
         # Unregister anything that needs it here
@@ -121,10 +121,12 @@ class PoseEstimator():
 				# There are 5 points, one in the center, and one in each corner
                 if(self.target):
                     self.model_image = np.array([
-                                                (self.target[0], self.target[3]),
-                                                (self.target[2], self.target[3]),
-                                                (self.target[2], self.target[1]),
-                                                (self.target[0], self.target[1])])
+                                                (self.target[1]*416, self.target[3]*416), #TR
+                                                (self.target[0]*416, self.target[3]*416),  #TL
+                                                (self.target[0]*416, self.target[2]*416), #BL
+                                                (self.target[1]*416, self.target[2]*416) #BR
+                                                ])
+
 
                     # Do the SolvePnP method
                     class_id = int(self.target[-1])  # Get the marker ID (assume it's passed in corners)
@@ -137,16 +139,17 @@ class PoseEstimator():
                         class_str = "man"
                     
 
+                    if (class_str):
+                        (success, rvec, tvec) = cv2.solvePnP(self.model_object, self.model_image, self.camera_matrix, self.dist_coeffs)
+        
+                        # If a result was found, send to TF2
+                        if success:
+                            self.broadcaster.send_tf_target(tvec[0], tvec[1], tvec[2], class_str) # send 4th paramater 'detection_type' (string)
+                            success = False
+                            self.target = []
+                            class_str = None
 
-                    (success, rvec, tvec) = cv2.solvePnP(self.model_object, self.model_image, self.camera_matrix, self.dist_coeffs)
-       
-                    # If a result was found, send to TF2
-                    if success:
                         
-                        self.broadcaster.send_tf_target(tvec[0], tvec[1], tvec[2], class_str) # send 4th paramater 'detection_type' (string)
-                        success = False
-                        self.target = []
-
     
 
 

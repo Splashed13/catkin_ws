@@ -32,7 +32,7 @@ class PoseEstimator():
 
         # Load in parameters from ROS
         self.param_use_compressed = rospy.get_param("~use_compressed", False)
-        self.param_marker_size = rospy.get_param("~marker_size", 0.02)
+        self.param_marker_size = rospy.get_param("~marker_size", 0.1)
         self.param_hue_center = rospy.get_param("~hue_center", 170)
         self.param_hue_range = rospy.get_param("~hue_range", 20) / 2
         self.param_sat_min = rospy.get_param("~sat_min", 50)
@@ -69,6 +69,8 @@ class PoseEstimator():
                                       (marker, marker, 0.0),
                                       (marker, -marker, 0.0),
                                       (-marker, -marker, 0.0)], dtype=np.float32)
+        
+
 
 
     def shutdown(self):
@@ -120,10 +122,11 @@ class PoseEstimator():
                 if(self.corners):
                     self.model_image = np.array([
                                                 
-                                                (self.corners[0], self.corners[1]),
-                                                (self.corners[2], self.corners[3]),
-                                                (self.corners[4], self.corners[5]),
-                                                (self.corners[6], self.corners[7])])
+                                                (self.corners[0], self.corners[1]), #TR
+                                                (self.corners[2], self.corners[3]), #TL
+                                                (self.corners[4], self.corners[5]), #BL
+                                                (self.corners[6], self.corners[7])])#BR
+                    rospy.loginfo(self.model_image)
                 
 
                     # Do the SolvePnP method
@@ -131,7 +134,7 @@ class PoseEstimator():
                     
                     # If a result was found, send to TF2
                     if success:
-
+                        
                         marker_id = str(int(self.corners[-1]))  # Get the marker ID (assume it's passed in corners)
                         self.broadcaster.send_tf_target(tvec[0], tvec[1], tvec[2], marker_id) # send 4th paramater 'detection_type' (string)
                         success = False

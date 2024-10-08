@@ -79,6 +79,7 @@ class ArucoDetector():
         corners_msg.data = data
 
         self.corners_pub.publish(corners_msg)
+        rospy.loginfo(corners_msg)
         
 
     def publish_to_ros(self, frame):

@@ -26,6 +26,7 @@ from std_msgs.msg import Float32MultiArray, Bool
 import random 
 
 from custom_msgs.msg import Detection
+from sensor_msgs.msg import BatteryState
 
 # This is getting a bit more complicated now, so we'll put our information in
 # a class to keep track of all of our variables. This is not so much different
@@ -38,6 +39,19 @@ class Guidance():
 		# Make sure we have a valid waypoint list
 		if not self.check_waypoints(waypoints):
 			raise ValueError("Invalid waypoint list input!")
+
+		######################
+		self.battery_per = 100  # Default battery percentage
+		self.critical_battery = 0.2 # Critical battery percentage
+
+		self.topic_battery = '/mavros/battery'
+		try:
+			# Attempt to subscribe to the battery topic
+			self.sub_battery = rospy.Subscriber(self.topic_battery, BatteryState, self.callback_battery)
+			rospy.loginfo(f"Subscribed to battery topic: {self.topic_battery}")  # Optional
+		except rospy.ROSException as e: # ROSException to handle case where topic does not exist
+			rospy.logwarn(f"Failed to subscribe to battery topic: {e}. Battery monitoring disabled.") # Indicate that topic could not be found or subscribed to
+			self.sub_battery = None  # Set to None if subscription fails
 
 		self.found_man = False
 		self.found_backpack = False
@@ -81,9 +95,10 @@ class Guidance():
 
 		# Rviz marker publisher
 		self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=10) 
+		
 
-		self.actuator_pub_tracker = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=10)
-		self.actuator_pub_epipen = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=10)
+		self.actuator_pub_tracker = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=10)
+		self.actuator_pub_epipen = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=10)
 
 		# Create our action client
 		action_ns = rospy.get_param("~action_topic", 'spar/flight')
@@ -193,9 +208,6 @@ class Guidance():
 		# If we haven't returned false yet, then waypoint looks valid!
 		return True
 	
-	def check_imagery_waypoints(self, wp):
-		pass
-
 	# This function will make sure we shut down the node as safely as possible
 	def shutdown(self):
 		# Unregister anything that needs it here
@@ -211,6 +223,7 @@ class Guidance():
 		# Store the current position at all times so it can be accessed later
 		if msg_in.pose.position:
 			self.current_location = msg_in.pose.position
+			#rospy.loginfo(f'current_location: {msg_in.pose.position}')
 		# convert msg_in.pose.orientation (quaternion) to rpy.
 		# if msg_in.pose.orientation:
 		# 	_, _, self.current_yaw = self.quaternion_to_rpy(msg_in.pose.orientation)
@@ -263,14 +276,13 @@ class Guidance():
 		rospy.loginfo(f"Processing new detection: {msg_in}")
 		self.performing_roi = True
 		self.spar_client.cancel_goal()
-
-		start_location = self.current_location
-		dwp = [msg_in.pose.pose.position.x, msg_in.pose.pose.position.y, 1, 0]
-		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0]
+		roi_inspection_altitude = 1
+		dwp = [msg_in.pose.pose.position.x, msg_in.pose.pose.position.y, roi_inspection_altitude, 0.0]
+		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0.0]
 
 		rospy.sleep(5)
 
-		rospy.loginfo(f'Sending diversion waypoint: {dwp}')
+		rospy.loginfo(f'Sending diversion waypoint: {dwp} returning {rwp}')
 		self.send_wp(dwp)
 		self.spar_client.wait_for_result()
 
@@ -280,10 +292,14 @@ class Guidance():
 
 		rospy.loginfo("Reached diversion ROI!")	
 		if(msg_in.object_name == "bag"):
-			self.actuator_pub_epipen.publish(True)
+			msg = Bool()
+			msg.data = True
+			self.actuator_pub_epipen.publish(msg)
 			rospy.loginfo("Sending found bag message to payload node")
 		if(msg_in.object_name == "man"):
-			self.actuator_pub_tracker.publish(True)
+			msg = Bool()
+			msg.data = True
+			self.actuator_pub_tracker.publish(msg)
 			rospy.loginfo("Sending found bag message to man node")
 
 		rospy.sleep(rospy.Duration(10))
@@ -344,6 +360,16 @@ class Guidance():
 	# The main purpose is to check if a waypoint has been reached,
 	# and if so, send out the next waypoint to continue the mission
 	def check_waypoint_status(self, te):
+		#######################
+		if self.sub_battery: # Check if the subscriber exists before checking battery percentage
+			if self.battery_per <= self.critical_battery:
+				rospy.logwarn("Battery level critical, initiating safe landing.")
+				self.spar_client.cancel_goal()  # Cancel current goal
+				self.send_low_battery_wp()  # Divert to safe landing
+				return
+			######################
+
+
 		# If we're performing the ROI diversion, then don't do
 		# anything here, as this is handled in that function
 		if not self.performing_roi:
@@ -505,7 +531,33 @@ class Guidance():
 
 		rospy.loginfo(f'Publising marker to rviz {object_name}: {position}')    
 
+##################################
+	def callback_battery(self, msg_in):
+		"""Callback for battery state messages."""
+		self.battery_per = msg_in.percentage
 
+	def send_low_battery_wp(self):
+		"""Send a waypoint to safely land the UAV due to low battery."""
+		# 1. Check for Aruco Markers:
+		if self.last_detected_marker is not None:
+			rospy.loginfo(f"Landing on Aruco marker {self.last_detected_marker}.")
+			landing_wp = self.detected_markers[self.last_detected_marker]
+			landing_wp[2] = 0.0  # Land at ground level (z=0) 
+			landing_wp[3] = 0.0
+			self.send_wp(landing_wp)# 2. No Aruco, use default:
+		else:
+			rospy.loginfo("No Aruco marker found, landing at centre of arena.")
+			default_wp = [0.0, 0.0, 0.0, 0.0] 
+			self.send_wp(default_wp)
+
+		self.spar_client.wait_for_result()
+		if self.spar_client.get_state() == GoalStatus.SUCCEEDED:
+			rospy.loginfo("Landed safely due to low battery.")
+			rospy.signal_shutdown("Landed safely due to low battery.")
+		else:
+			rospy.logwarn("Safe landing failed, please intervene manually.")
+			rospy.signal_shutdown("Landing intervention required.")
+############################			
 def main(args):
 	# Initialise ROS
 	rospy.init_node('guidance')
