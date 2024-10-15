@@ -80,7 +80,30 @@ AreaMap::AreaMap() :
 
 		ROS_INFO("No obstacles define, placing random obstacle (s:%i;d:%i;p:%0.2f)", obs.size, axes_div, p);
 		obs_.push_back(obs);
-	}
+
+        obstacles_t obs2;
+        obs2.type = OBS_CIRCLE;
+        obs2.size = obs.size; // Same size as the square
+
+        // Get circle position from parameter server
+        int circle_x, circle_y; //default values incase none are given through the .yaml file
+		// Retrieve parameters, providing default values if not found
+		nh_.param("fixed/x", circle_x, 20); // Default x = 20
+		nh_.param("fixed/y", circle_y, 20); // Default y = 20
+        obs2.x = circle_x;
+        obs2.y = circle_y;
+
+
+        //Boundary Check
+        if (obs2.x - obs2.size < 0 || obs2.x + obs2.size >= param_map_width_ || obs2.y - obs2.size < 0 || obs2.y + obs2.size >= param_map_height_) {
+            ROS_WARN("Circle obstacle out of bounds. Placing at default position.");
+            obs2.x = 20; // Default position if out of bounds
+            obs2.y = 20;
+        }
+
+        ROS_INFO("Placing circle obstacle (s:%i; x:%i, y:%i)", obs2.size, obs2.x, obs2.y);
+        obs_.push_back(obs2);
+	}	
 
 	//Setup publisher
 	pub_map_ = nh_.advertise<nav_msgs::OccupancyGrid>("grid", 1, true);

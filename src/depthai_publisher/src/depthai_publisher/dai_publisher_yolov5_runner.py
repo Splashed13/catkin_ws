@@ -31,9 +31,9 @@ syncNN = True
 # model path
 modelsPath = "/home/gcsteam5/catkin_ws/src/depthai_publisher/src/depthai_publisher/models"
 # modelName = 'exp31Yolov5_ov21.4_6sh'
-modelName = 'model5v2'
+modelName = 'model4'
 # confJson = 'exp31Yolov5.json'
-confJson = 'model5v2.json'
+confJson = 'model4.json'
 
 ################################  Yolo Config File
 # parse config
@@ -192,15 +192,18 @@ class DepthaiCamera():
                     overlay = self.show_yolo(frame, detections)
 
                     # Prepare and publish bounding box sizes
-                    bbox_sizes = []
+                    
+                    uframe = frame.copy()
+                    bbox_msg = Float32MultiArray()
                     for detection in detections:
                         # Convert normalized coordinates to pixel coordinates
-                        bbox_pixel = self.frameNorm(frame, (detection.xmin, detection.ymin, detection.xmax, detection.ymax))
+                        bbox_pixel = self.frameNorm(uframe, (detection.xmin, detection.ymin, detection.xmax, detection.ymax))
                         # Append pixel coordinates and label to bbox_sizes
-                        bbox_sizes.extend([bbox_pixel[0], bbox_pixel[1], bbox_pixel[2], bbox_pixel[3], detection.label])
-                    bbox_msg = Float32MultiArray()
-                    bbox_msg.data = bbox_sizes
-                    self.pub_bbox.publish(bbox_msg)
+                        bbox_msg.data = ([bbox_pixel[0], bbox_pixel[1], bbox_pixel[2], bbox_pixel[3], detection.label])
+                        self.pub_bbox.publish(bbox_msg)
+                    
+                    
+                    inDet = None
                     
 
                 else:

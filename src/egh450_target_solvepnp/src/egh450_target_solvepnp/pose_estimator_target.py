@@ -33,7 +33,7 @@ class PoseEstimator():
 
         # Load in parameters from ROS
         self.param_use_compressed = rospy.get_param("~use_compressed", False)
-        self.param_marker_size_human = rospy.get_param("~marker_size", 0.1)
+        self.param_marker_size_human = rospy.get_param("~marker_size", 0.0825)
         self.param_marker_size_bag = rospy.get_param("~marker_size", 0.1)
 
         # Set additional camera parameters
@@ -84,8 +84,8 @@ class PoseEstimator():
     def callback_info(self, msg_in):
         self.dist_coeffs = np.array([-0.10818, 0.12793, 0.00000, 0.00000, -0.04204], dtype=np.float32)
         
-        self.camera_matrix = np.array([(615.381, 0.0, 320.0), 
-                                        (0.0, 615.381, 240.0),
+        self.camera_matrix = np.array([(615.381, 0.0, 208.0), 
+                                        (0.0, 615.381, 208.0),
                                         (0.0, 0.0, 1.0)], dtype=np.float32)
 
 
@@ -120,11 +120,12 @@ class PoseEstimator():
 				# For this example, draw a square around where the circle should be
 				# There are 5 points, one in the center, and one in each corner
                 if(self.target):
+                    
                     self.model_image = np.array([
-                                                (self.target[1]*416, self.target[3]*416), #TR
-                                                (self.target[0]*416, self.target[3]*416),  #TL
-                                                (self.target[0]*416, self.target[2]*416), #BL
-                                                (self.target[1]*416, self.target[2]*416) #BR
+                                                (self.target[1], self.target[3]), #TR
+                                                (self.target[0], self.target[3]),  #TL
+                                                (self.target[0], self.target[2]), #BL
+                                                (self.target[1], self.target[2]) #BR
                                                 ])
 
 
@@ -144,6 +145,7 @@ class PoseEstimator():
         
                         # If a result was found, send to TF2
                         if success:
+                            rospy.loginfo("in success")
                             self.broadcaster.send_tf_target(tvec[0], tvec[1], tvec[2], class_str) # send 4th paramater 'detection_type' (string)
                             success = False
                             self.target = []
@@ -163,7 +165,7 @@ class Tf2BroadcasterTarget:
 
         # Setup tf2 broadcaster and timestamp publisher
         self.tfbr = tf2_ros.TransformBroadcaster()
-        self.pub_found = rospy.Publisher('/uav/target_found', Detection, queue_size=10)
+        self.pub_found = rospy.Publisher('/uav/target_found', Detection, queue_size=2)
 
     def send_tf_target(self, estimate_x=-0.4, estimate_y=0.2, estimate_z=1.35, detection_type="man"):
         if detection_type is None:

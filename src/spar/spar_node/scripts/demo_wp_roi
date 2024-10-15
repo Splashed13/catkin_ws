@@ -42,7 +42,7 @@ class Guidance():
 
 		######################
 		self.battery_per = 100  # Default battery percentage
-		self.critical_battery = 0.2 # Critical battery percentage
+		self.critical_battery = 0.1 # Critical battery percentage
 
 		self.topic_battery = '/mavros/battery'
 		try:
@@ -74,6 +74,8 @@ class Guidance():
 	
 		self.breadcrumb_waypoint_counter = 0
 		self.breadcrumbWPs = []
+
+		rospy.loginfo(f'Waypoints (inside guidance class): {waypoints}')
 		
 		self.display_path(waypoints, "Waypoints")
 
@@ -90,6 +92,12 @@ class Guidance():
 		self.accuracy_pos = rospy.get_param("~acc_pos", 0.1)
 		self.accuracy_yaw = rospy.get_param("~acc_yaw", 2)
 
+		# Safe aruco marker
+		self.safe_aruco_marker = rospy.get_param("~safe_marker", None)
+		if self.safe_aruco_marker:
+			self.safe_aruco_marker = int(self.safe_aruco_marker)
+			rospy.loginfo(f'Set safe aruco marker as {self.safe_aruco_marker}')
+
 		# Aruco subscriber
 		self.sub_aruco = rospy.Subscriber('/emulated_uav/aruco', Float32MultiArray, self.callback_aruco)
 
@@ -97,8 +105,8 @@ class Guidance():
 		self.marker_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=10) 
 		
 
-		self.actuator_pub_tracker = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=10)
-		self.actuator_pub_epipen = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=10)
+		self.actuator_pub_tracker = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=1)
+		self.actuator_pub_epipen = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=1)
 
 		# Create our action client
 		action_ns = rospy.get_param("~action_topic", 'spar/flight')
@@ -201,7 +209,7 @@ class Guidance():
 			return False
 
 		# Check if waypoints are within arena boundaries (8x4) arena
-		if abs(wp[0]) > 4 or abs(wp[1]) > 2.25 or abs(wp[2]) > 4 or (wp[2] < 0):
+		if abs(wp[0]) > 4.05 or abs(wp[1]) > 2.55 or abs(wp[2]) > 4 or (wp[2] < 0):
 			rospy.logwarn(f'Waypoint has an invalid size for 0134 must be within arena bounds, problematic waypoints: {wp}')
 			return False
 		
@@ -232,7 +240,18 @@ class Guidance():
 	# It is also responsible for handling the ROI "inspection task"
 	def callback_inspect_roi(self, msg_in: Detection):
 		rospy.loginfo(f'Recieved roi message object {msg_in.object_name}: {[msg_in.pose.pose.position.x, msg_in.pose.pose.position.y, msg_in.pose.pose.position.z]}')
-		"""Callback for ROI detection messages."""
+		
+		if self.performing_roi:
+			rospy.logwarn("Already performing ROI inspection. Ignoring new detection.")
+			return
+		
+		roi_inspection_altitude = 1.0
+		dwp = [msg_in.pose.pose.position.x, msg_in.pose.pose.position.y, roi_inspection_altitude, 0.0]
+
+		if not self.check_waypoint(dwp): # check waypoint will handle returning false if dwp is out of bounds
+			rospy.logwarn(f"Diversion waypoint {dwp} is out of bounds. Ignoring detection.")
+			return
+
 		is_aruco = False
 		try:
 			aruco_marker_id = int(msg_in.object_name)
@@ -276,11 +295,8 @@ class Guidance():
 		rospy.loginfo(f"Processing new detection: {msg_in}")
 		self.performing_roi = True
 		self.spar_client.cancel_goal()
-		roi_inspection_altitude = 1
-		dwp = [msg_in.pose.pose.position.x, msg_in.pose.pose.position.y, roi_inspection_altitude, 0.0]
+		
 		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0.0]
-
-		rospy.sleep(5)
 
 		rospy.loginfo(f'Sending diversion waypoint: {dwp} returning {rwp}')
 		self.send_wp(dwp)
@@ -290,7 +306,9 @@ class Guidance():
 			rospy.signal_shutdown("cancelled")
 			return
 
-		rospy.loginfo("Reached diversion ROI!")	
+		rospy.loginfo("Reached diversion ROI waiting 5 seconds!")	
+		rospy.sleep(rospy.Duration(5))
+
 		if(msg_in.object_name == "bag"):
 			msg = Bool()
 			msg.data = True
@@ -302,7 +320,7 @@ class Guidance():
 			self.actuator_pub_tracker.publish(msg)
 			rospy.loginfo("Sending found bag message to man node")
 
-		rospy.sleep(rospy.Duration(10))
+
 
 		rospy.loginfo("Returning to flight plan...")
 		self.send_wp(rwp)
@@ -349,7 +367,6 @@ class Guidance():
 		 # If shutdown is issued, cancel current mission before rospy is shutdown
 		rospy.on_shutdown(lambda : self.spar_client.cancel_goal())
 
-
 	def callback_aruco(self, msg):
 		"""Callback function for the /emulated_uav/aruco topic."""
 		self.aruco_detections = list(msg.data)  # Store the received data
@@ -365,7 +382,7 @@ class Guidance():
 			if self.battery_per <= self.critical_battery:
 				rospy.logwarn("Battery level critical, initiating safe landing.")
 				self.spar_client.cancel_goal()  # Cancel current goal
-				self.send_low_battery_wp()  # Divert to safe landing
+				self.send_safe_landing_wp()  # Divert to safe landing
 				return
 			######################
 
@@ -449,19 +466,7 @@ class Guidance():
 					# XXX:	This could be used to restart the mission back to the
 					#		first waypoint instead to restart the mission
 					
-					if(self.last_detected_marker):
-						rospy.loginfo("Mission complete directing to last observed aruco marker for landing!")
-						last_detected_marker = self.detected_markers[self.last_detected_marker]
-						last_detected_marker_x = last_detected_marker[0]
-						last_detected_marker_y = last_detected_marker[1]
-						self.send_wp([last_detected_marker_x, last_detected_marker_y, 0, 0]) # Land on it
-					else:
-						rospy.loginfo("Mission complete no observed aruco marker returning to centre of map!")
-						self.send_wp([0, 0, 0, 0])
-
-					if self.spar_client.get_state() == GoalStatus.SUCCEEDED:
-						rospy.loginfo("Final waypoint reached successfully! Shutting down process")
-						rospy.signal_shutdown("complete")
+					self.send_safe_landing_wp()
 
 			elif (self.spar_client.get_state() == GoalStatus.PREEMPTED) or (self.spar_client.get_state() == GoalStatus.ABORTED) or (self.spar_client.get_state() == GoalStatus.REJECTED):
 				rospy.loginfo("Mission cancelled!")
@@ -521,7 +526,7 @@ class Guidance():
 		text_marker.pose.position.z = 0.2 
 
 		text_marker.text = object_name
-		text_marker.scale.z = 0.1  
+		text_marker.scale.z = 0.5  
 		text_marker.color.a = 1.0
 		text_marker.color.r = 1.0
 		text_marker.color.g = 1.0
@@ -535,16 +540,17 @@ class Guidance():
 	def callback_battery(self, msg_in):
 		"""Callback for battery state messages."""
 		self.battery_per = msg_in.percentage
+		# rospy.loginfo(f'Battery Percentage {self.battery_per}')    
 
-	def send_low_battery_wp(self):
+	def send_safe_landing_wp(self):
 		"""Send a waypoint to safely land the UAV due to low battery."""
 		# 1. Check for Aruco Markers:
-		if self.last_detected_marker is not None:
-			rospy.loginfo(f"Landing on Aruco marker {self.last_detected_marker}.")
-			landing_wp = self.detected_markers[self.last_detected_marker]
-			landing_wp[2] = 0.0  # Land at ground level (z=0) 
-			landing_wp[3] = 0.0
-			self.send_wp(landing_wp)# 2. No Aruco, use default:
+		if self.safe_aruco_marker and self.safe_aruco_marker in self.detected_markers:
+			safe_marker = self.detected_markers[self.safe_aruco_marker]
+			rospy.loginfo("Mission complete directing to safe aruco marker for landing!")
+			last_safe_marker_x = safe_marker[0]
+			last_safe_marker_y = safe_marker[1]
+			self.send_wp([last_safe_marker_x, last_safe_marker_y, 0.0, 0.0]) # Land on it
 		else:
 			rospy.loginfo("No Aruco marker found, landing at centre of arena.")
 			default_wp = [0.0, 0.0, 0.0, 0.0] 
@@ -552,8 +558,8 @@ class Guidance():
 
 		self.spar_client.wait_for_result()
 		if self.spar_client.get_state() == GoalStatus.SUCCEEDED:
-			rospy.loginfo("Landed safely due to low battery.")
-			rospy.signal_shutdown("Landed safely due to low battery.")
+			rospy.loginfo("Landed safely")
+			rospy.signal_shutdown("Landed safely")
 		else:
 			rospy.logwarn("Safe landing failed, please intervene manually.")
 			rospy.signal_shutdown("Landing intervention required.")
@@ -573,28 +579,62 @@ def main(args):
 
 	survey_altitude = rospy.get_param("~survey_altitude", 1)
 
-	if survey_altitude > 4 or survey_altitude < 0:
-		rospy.logwarn("Survey Altitude to high must be 0m < x < 4m")
-		return 
+	if survey_altitude < 2.0:
+		rospy.loginfo("Survey Altitude set to path for range below 2m")
 
-	wps = [[ 0.0, 0.0, survey_altitude, 0.0],
+		wps = [[ 0.0, 0.0, survey_altitude, 0.0],
+		[ 2.4, 2.0, survey_altitude, 0.0],
+		[ 2.4, -2.0, survey_altitude, 0.0],
+		[ 1.8, -2.0, survey_altitude, 0.0],
+		[ 1.8, 2.0, survey_altitude, 0.0],
+		[ 1.2, 2.0, survey_altitude, 0.0],
+		[ 1.2, -2.0, survey_altitude, 0.0],
+		[ 0.6, -2.0, survey_altitude, 0.0],
+		[ 0.6, 2.0, survey_altitude, 0.0],
+		[ 0.0, 2.0, survey_altitude, 0.0],
+		[ 0.0, -2.0, survey_altitude, 0.0],
+		[ -0.6,-2.0, survey_altitude, 0.0],
+		[ -0.6, 2.0, survey_altitude, 0.0],
+		[ -1.2, 2.0, survey_altitude, 0.0],
+		[ -1.2, -2.0, survey_altitude, 0.0],
+		[ -1.8, -2.0, survey_altitude, 0.0],
+		[ -1.8, 2.0, survey_altitude, 0.0],
+		[ -2.4, 2.0, survey_altitude, 0.0],
+		[ -2.4, -2.0, survey_altitude, 0.0],
+		[ 0.0, 0.0, survey_altitude, 0.0]]
+
+
+
+	elif 2.0 <= survey_altitude < 4:
+		rospy.loginfo("Survey Altitude set to path for range 2m < x < 4m")
+
+		wps = [[ 0.0, 0.0, survey_altitude, 0.0],
 		[ 2.0, 2.0, survey_altitude, 0.0],
 		[ 2.0, -2.0, survey_altitude, 0.0],
 		[ 1.2, -2.0, survey_altitude, 0.0],
 		[ 1.2, 2.0, survey_altitude, 0.0],
 		[ 0.6, 2.0, survey_altitude, 0.0],
 		[ 0.6, -2.0, survey_altitude, 0.0],
-		[ -0.6, -2.0, survey_altitude, 0.0],
+		[ 0.0, -2.0, survey_altitude, 0.0],
+		[ 0.0, 2.0, survey_altitude, 0.0],
 		[ -0.6, 2.0, survey_altitude, 0.0],
-		[ -1.2, 2.0, survey_altitude, 0.0],
+		[ -0.6, -2.0, survey_altitude, 0.0],
 		[ -1.2, -2.0, survey_altitude, 0.0],
-		[ -2.0, -2.0, survey_altitude, 0.0],
+		[ -1.2, 2.0, survey_altitude, 0.0],
 		[ -2.0, 2.0, survey_altitude, 0.0],
-		[ -2.5, 2.0, survey_altitude, 0.0],
+		[ -2.0, -2.0, survey_altitude, 0.0],
 		[ -2.5, -2.0, survey_altitude, 0.0],
-		[ 0.0, 0.0, survey_altitude, 0.0],
-		[ 0.0, 0.0, 0.0, 0.0]]
+		[ -2.5, 2.0, survey_altitude, 0.0],
+		[ -3.2, 2.0, survey_altitude, 0.0],
+		[ -3.2, -2.0, survey_altitude, 0.0],
+		[ 0.0, 0.0, survey_altitude, 0.0]]
+		
 
+	else:
+		rospy.logwarn("Cant select altitude above 4m")
+		return 
+    
+    
 	# Create our guidance class option
 	guide = Guidance(wps)
 	

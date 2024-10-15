@@ -23,7 +23,7 @@ class PoseEstimator():
         self.broadcaster = Tf2BroadcasterTarget()
         self.corners = None
         
-        self.pub_aruco = rospy.Publisher('/emulated_uav/aruco', Float32MultiArray, queue_size=10)
+        self.pub_aruco = rospy.Publisher('/emulated_uav/aruco', Float32MultiArray, queue_size=2)
         self.tvec_dict = {}
         self.aruco_detections = [] 
         
@@ -83,8 +83,8 @@ class PoseEstimator():
     def callback_info(self, msg_in):
         self.dist_coeffs = np.array([-0.10818, 0.12793, 0.00000, 0.00000, -0.04204], dtype=np.float32)
         
-        self.camera_matrix = np.array([(615.381, 0.0, 320.0), 
-                                        (0.0, 615.381, 240.0),
+        self.camera_matrix = np.array([(615.381, 0.0, 208.0), 
+                                        (0.0, 615.381, 208.0),
                                         (0.0, 0.0, 1.0)], dtype=np.float32)
 
 		
@@ -153,7 +153,7 @@ class Tf2BroadcasterTarget:
 
         # Setup tf2 broadcaster and timestamp publisher
         self.tfbr = tf2_ros.TransformBroadcaster()
-        self.pub_found = rospy.Publisher('/uav/target_found', Detection, queue_size=10)
+        self.pub_found = rospy.Publisher('/uav/target_found', Detection, queue_size=2)
 
     def send_tf_target(self, estimate_x=-0.4, estimate_y=0.2, estimate_z=1.35, detection_type="man"):
         if detection_type is None:

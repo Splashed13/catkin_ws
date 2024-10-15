@@ -8,15 +8,7 @@ obstacles:
   rand:
     size: 3
     divisor: 6
-  #obs_0:
-  #  type: "square"
-  #  size: 3
-  #  position:
-  #    x: 15
-  #    y: 15
-  #obs_1:
-  #  type: "circle"
-  #  size: 5
-  #  position:
-  #    x: 40
-  #    y: 30
+
+fixed:  #  New section for the circle obstacle
+  x: 35   # ensure 5<x<40
+  y: 25   # ensure ([15 + 5]<y<25) the plus 15 is to account for padding on y axis
