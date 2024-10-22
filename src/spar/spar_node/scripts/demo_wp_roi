@@ -583,7 +583,7 @@ def main(args):
 		rospy.loginfo("Survey Altitude set to path for range below 2m")
 
 		wps = [[ 0.0, 0.0, survey_altitude, 0.0],
-		[ 2.4, 2.0, survey_altitude, 0.0],
+		[ 2.4, 2.0, survey_altitududeeeeee, 0.0],
 		[ 2.4, -2.0, survey_altitude, 0.0],
 		[ 1.8, -2.0, survey_altitude, 0.0],
 		[ 1.8, 2.0, survey_altitude, 0.0],

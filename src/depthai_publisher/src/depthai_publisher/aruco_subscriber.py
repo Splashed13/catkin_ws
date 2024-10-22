@@ -3,7 +3,8 @@
 import cv2
 import rospy
 from sensor_msgs.msg import CompressedImage
-from cv_bridge import CvBridge, CvBridgeError
+from cv_bridge import CvBridge
+
 from std_msgs.msg import Int32, MultiArrayDimension, MultiArrayLayout, Float32MultiArray
 import numpy as np
 
